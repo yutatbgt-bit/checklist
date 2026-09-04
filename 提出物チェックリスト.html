@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'self';">
+  <meta name="description" content="提出物チェックリスト — 提出期限と状況を管理するツール">
+  <meta name="referrer" content="no-referrer">
+  <title>提出物チェックリスト</title>
+  <style>
+    /* ═══════════════════════════════════════════
+       Design Tokens — Light / Business
+    ═══════════════════════════════════════════ */
+    :root {
+      --bg-page: #f1f4f8;
+      --bg-header: #ffffff;
+      --bg-card: #ffffff;
+      --bg-col-base: #f8fafc;
+      --bg-col-done: #f0fdf4;
+      --border-base: #e2e8f0;
+      --border-card: #e9edf2;
+      --border-done: #bbf7d0;
+
+      --accent-primary: #2563eb;
+      --accent-success: #16a34a;
+      --accent-danger: #dc2626;
+      --accent-badge: #d97706;
+
+      --text-h: #0f172a;
+      --text-body: #334155;
+      --text-sub: #64748b;
+      --text-muted: #94a3b8;
+
+      --pill-monthly-bg: #eff6ff;
+      --pill-monthly-fg: #1d4ed8;
+      --pill-weekly-bg: #faf5ff;
+      --pill-weekly-fg: #7c3aed;
+
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+
+      --shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.04);
+
+      --font: 'Segoe UI', 'Yu Gothic UI', 'Meiryo UI', system-ui, sans-serif;
+      --tr: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* ═══════════════════════════════════════════
+       Reset
+    ═══════════════════════════════════════════ */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg-page);
+      color: var(--text-body);
+      min-height: 100vh;
+    }
+
+    /* ═══════════════════════════════════════════
+       Header
+    ═══════════════════════════════════════════ */
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--bg-header);
+      border-bottom: 1px solid var(--border-base);
+      box-shadow: var(--shadow-xs);
+    }
+
+    .header-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 28px;
+      height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-logo {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-sm);
+      background: var(--accent-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .header-logo svg {
+      width: 16px;
+      height: 16px;
+      stroke: #fff;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .header-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-h);
+      letter-spacing: -0.01em;
+    }
+
+    .header-subtitle {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      padding-left: 12px;
+      border-left: 1px solid var(--border-base);
+      margin-left: 4px;
+    }
+
+    .btn-clear {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 0.78rem;
+      font-weight: 600;
+      font-family: var(--font);
+      cursor: pointer;
+      border: 1px solid #fca5a5;
+      background: #fff;
+      color: var(--accent-danger);
+      transition: all var(--tr);
+      white-space: nowrap;
+    }
+
+    .btn-clear:hover {
+      background: #fef2f2;
+      border-color: var(--accent-danger);
+      box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08);
+    }
+
+    .btn-clear:active {
+      transform: scale(0.97);
+    }
+
+    /* ═══════════════════════════════════════════
+       Kanban Layout — 3列 (動的生成)
+    ═══════════════════════════════════════════ */
+    .kanban-root {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 28px 28px 60px;
+      display: grid;
+      /* JS で grid-template-columns を上書き */
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    /* ─── Column ─── */
+    .kanban-col {
+      background: var(--bg-col-base);
+      border: 1px solid var(--border-base);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .kanban-col.col-done {
+      background: var(--bg-col-done);
+      border-color: var(--border-done);
+    }
+
+    .col-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border-base);
+      background: rgba(255, 255, 255, 0.6);
+    }
+
+    .col-done .col-header {
+      border-bottom-color: var(--border-done);
+      background: rgba(240, 253, 244, 0.8);
+    }
+
+    .col-header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .col-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-badge);
+      flex-shrink: 0;
+    }
+
+    .col-done .col-dot {
+      background: var(--accent-success);
+    }
+
+    .col-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text-body);
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .col-body {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 120px;
+    }
+
+    /* Empty state */
+    .col-empty {
+      text-align: center;
+      padding: 28px 16px;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+
+    /* ═══════════════════════════════════════════
+       Kanban Card
+    ═══════════════════════════════════════════ */
+    .kcard {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-md);
+      padding: 14px 14px 12px;
+      box-shadow: var(--shadow-xs);
+      cursor: pointer;
+      transition: box-shadow var(--tr), transform var(--tr), border-color var(--tr);
+      user-select: none;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kcard::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      border-radius: 3px 0 0 3px;
+      background: var(--accent-primary);
+      opacity: 0;
+      transition: opacity var(--tr);
+    }
+
+    .kcard:hover {
+      box-shadow: var(--shadow-sm);
+      border-color: #cbd5e1;
+      transform: translateY(-1px);
+    }
+
+    .kcard:hover::before {
+      opacity: 1;
+    }
+
+    .kcard:active {
+      transform: translateY(0);
+    }
+
+    /* ─── チェック中の一瞬状態（移動前アニメ） ─── */
+    .kcard.is-checking .kcard-checkbox {
+      background: var(--accent-success);
+      border-color: var(--accent-success);
+      box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.2);
+    }
+
+    .kcard.is-checking .kcard-checkbox svg {
+      opacity: 1;
+      transform: scale(1.1);
+    }
+
+    /* Done state */
+    .kcard.is-done {
+      border-color: #bbf7d0;
+      background: #f0fdf4;
+    }
+
+    .kcard.is-done::before {
+      background: var(--accent-success);
+      opacity: 1;
+    }
+
+    /* Moving animation */
+    @keyframes cardAppear {
+      from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.97);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .kcard.entering {
+      animation: cardAppear 0.25s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+    }
+
+    /* ─── Card top row ─── */
+    .kcard-top {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    /* Checkbox */
+    .kcard-checkbox {
+      flex-shrink: 0;
+      width: 18px;
+      height: 18px;
+      border: 1.5px solid var(--text-muted);
+      border-radius: 4px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--tr);
+      margin-top: 1px;
+    }
+
+    .kcard:hover .kcard-checkbox {
+      border-color: var(--accent-primary);
+    }
+
+    .kcard.is-done .kcard-checkbox {
+      background: var(--accent-success);
+      border-color: var(--accent-success);
+      box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.2);
+    }
+
+    .kcard-checkbox svg {
+      width: 11px;
+      height: 11px;
+      stroke: #fff;
+      fill: none;
+      stroke-width: 2.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      opacity: 0;
+      transform: scale(0.4);
+      transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .kcard.is-done .kcard-checkbox svg {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    /* Label */
+    .kcard-label {
+      flex: 1;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-h);
+      line-height: 1.4;
+      transition: color var(--tr);
+    }
+
+    .kcard.is-done .kcard-label {
+      color: #166534;
+      font-weight: 700;
+    }
+
+    /* ─── Card meta row ─── */
+    .kcard-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 9px;
+      padding-left: 28px;
+      flex-wrap: wrap;
+    }
+
+    /* Deadline badge */
+    .badge-deadline {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 3px;
+      background: #fffbeb;
+      color: #92400e;
+      border: 1px solid #fde68a;
+    }
+
+    .kcard.is-done .badge-deadline {
+      background: #dcfce7;
+      color: #14532d;
+      border-color: #86efac;
+    }
+
+    /* Category pill */
+    .badge-cat {
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 3px;
+      letter-spacing: 0.03em;
+    }
+
+    .badge-cat.monthly {
+      background: var(--pill-monthly-bg);
+      color: var(--pill-monthly-fg);
+    }
+
+    .badge-cat.weekly {
+      background: var(--pill-weekly-bg);
+      color: var(--pill-weekly-fg);
+    }
+
+    /* ─── Card memo row ─── */
+    .kcard-memo-wrap {
+      padding-left: 28px;
+      margin-top: 8px;
+    }
+
+    .kcard-memo {
+      width: 100%;
+      font-family: var(--font);
+      font-size: 0.75rem;
+      color: var(--text-body);
+      background: #f8fafc;
+      border: 1px solid var(--border-base);
+      border-radius: var(--radius-sm);
+      padding: 5px 9px;
+      outline: none;
+      transition: all var(--tr);
+      cursor: text;
+    }
+
+    .kcard-memo::placeholder {
+      color: var(--text-muted);
+    }
+
+    .kcard-memo:focus {
+      border-color: #93c5fd;
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+    }
+
+    /* ═══════════════════════════════════════════
+       Error
+    ═══════════════════════════════════════════ */
+    #config-error {
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 20px 24px;
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      border-radius: var(--radius-md);
+      color: var(--accent-danger);
+      font-size: 0.875rem;
+      line-height: 1.7;
+      display: none;
+      white-space: pre-wrap;
+    }
+
+    /* ═══════════════════════════════════════════
+       Footer
+    ═══════════════════════════════════════════ */
+    .app-footer {
+      text-align: center;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      padding: 12px 24px 24px;
+      border-top: 1px solid var(--border-base);
+    }
+
+    /* ═══════════════════════════════════════════
+       Responsive
+    ═══════════════════════════════════════════ */
+    @media (max-width: 860px) {
+      .kanban-root {
+        grid-template-columns: 1fr !important;
+        padding: 16px;
+      }
+
+      .header-subtitle {
+        display: none;
+      }
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      .app-header {
+        box-shadow: none;
+        border-bottom: 1px solid #ccc;
+      }
+
+      .btn-clear {
+        display: none;
+      }
+
+      .kcard {
+        box-shadow: none;
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ヘッダー -->
+  <header class="app-header" role="banner">
+    <div class="header-inner">
+      <div class="header-left">
+        <h1 class="header-title" id="app-title-heading">提出物チェックリスト</h1>
+      </div>
+      <button class="btn-clear" id="btn-clear" aria-label="全クリア">全クリア</button>
+    </div>
+  </header>
+
+  <!-- Config エラー表示 -->
+  <div id="config-error" role="alert" aria-live="assertive"></div>
+
+  <!-- カンバンボード（JS で動的生成） -->
+  <div class="kanban-root" id="kanban-root" role="main"></div>
+
+  <!-- フッター -->
+  <footer class="app-footer" id="app-footer" role="contentinfo"></footer>
+
+  <!-- 設定ファイル -->
+  <script src="config.js"></script>
+
+  <!-- アプリロジック -->
+  <script>
+    (function () {
+      'use strict';
+
+      // ─────────────────────────────────────────────
+      // 定数
+      // ─────────────────────────────────────────────
+      const LS_PREFIX = 'checklist_v1_';
+      const LS_CHECKED = LS_PREFIX + 'checked';
+      const LS_MEMO = LS_PREFIX + 'memo';
+
+      /**
+       * カードが移動するまでのチェックマーク表示時間 (ms)
+       * この間は元の列でチェックマークが見える
+       */
+      const CHECK_ANIM_MS = 300;
+
+      // ─────────────────────────────────────────────
+      // ユーティリティ
+      // ─────────────────────────────────────────────
+
+      /** XSS防止: textContent で安全にテキストを設定 */
+      function safeText(el, text) {
+        el.textContent = String(text);
+      }
+
+      /** 文字列を指定長に切り詰める */
+      function truncate(str, max) {
+        if (typeof str !== 'string') return '';
+        return str.length > max ? str.slice(0, max) : str;
+      }
+
+      // ─────────────────────────────────────────────
+      // 設定バリデーション
+      // ─────────────────────────────────────────────
+
+      function validateConfig() {
+        const errors = [];
+        if (typeof CHECKLIST_CONFIG !== 'object' || CHECKLIST_CONFIG === null) {
+          errors.push('CHECKLIST_CONFIG が定義されていません。config.js を確認してください。');
+          return errors;
+        }
+        if (!Array.isArray(CHECKLIST_CONFIG.items) || CHECKLIST_CONFIG.items.length === 0) {
+          errors.push('CHECKLIST_CONFIG.items が空または未定義です。');
+        }
+        if (!Array.isArray(CHECKLIST_CONFIG.categories) || CHECKLIST_CONFIG.categories.length === 0) {
+          errors.push('CHECKLIST_CONFIG.categories が空または未定義です。');
+        }
+        const ids = new Set();
+        (CHECKLIST_CONFIG.items || []).forEach((item, idx) => {
+          if (!item.id || typeof item.id !== 'string') {
+            errors.push(`items[${idx}].id が未設定または文字列ではありません。`);
+          } else if (ids.has(item.id)) {
+            errors.push(`items の id "${item.id}" が重複しています。`);
+          } else {
+            ids.add(item.id);
+          }
+          if (!item.label || typeof item.label !== 'string') {
+            errors.push(`items[${idx}].label が未設定です。`);
+          }
+        });
+        return errors;
+      }
+
+      // ─────────────────────────────────────────────
+      // 状態管理
+      // ─────────────────────────────────────────────
+
+      /** @type {Set<string>} */
+      let checkedSet = new Set();
+      /** @type {Object<string,string>} */
+      let memoMap = {};
+
+      function loadState() {
+        try {
+          const raw = localStorage.getItem(LS_CHECKED);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) checkedSet = new Set(parsed);
+          }
+        } catch (_) { checkedSet = new Set(); }
+
+        try {
+          const raw = localStorage.getItem(LS_MEMO);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+              memoMap = parsed;
+            }
+          }
+        } catch (_) { memoMap = {}; }
+      }
+
+      function saveChecked() {
+        try {
+          localStorage.setItem(LS_CHECKED, JSON.stringify([...checkedSet]));
+        } catch (e) {
+          console.warn('[checklist] localStorage 書き込み失敗:', e.message);
+        }
+      }
+
+      function saveMemo(id, value) {
+        memoMap[id] = value;
+        try {
+          localStorage.setItem(LS_MEMO, JSON.stringify(memoMap));
+        } catch (e) {
+          console.warn('[checklist] localStorage (memo) 書き込み失敗:', e.message);
+        }
+      }
+
+      // ─────────────────────────────────────────────
+      // カンバン列生成
+      // ─────────────────────────────────────────────
+
+      /**
+       * カンバン列（section要素）を生成して返す
+       * @param {string} id    列の識別子（col-{id} / col-{id}-body で参照）
+       * @param {string} label 列見出しテキスト
+       * @param {boolean} isDone 提出済み列かどうか
+       * @returns {HTMLElement}
+       */
+      function createColumn(id, label, isDone) {
+        const section = document.createElement('section');
+        section.className = 'kanban-col' + (isDone ? ' col-done' : '');
+        section.id = 'col-' + id;
+        section.setAttribute('aria-label', label);
+
+        const header = document.createElement('div');
+        header.className = 'col-header';
+
+        const headerLeft = document.createElement('div');
+        headerLeft.className = 'col-header-left';
+
+        const dot = document.createElement('span');
+        dot.className = 'col-dot';
+        dot.setAttribute('aria-hidden', 'true');
+
+        const titleSpan = document.createElement('span');
+        titleSpan.className = 'col-title';
+        safeText(titleSpan, label);
+
+        headerLeft.appendChild(dot);
+        headerLeft.appendChild(titleSpan);
+        header.appendChild(headerLeft);
+        section.appendChild(header);
+
+        const body = document.createElement('div');
+        body.className = 'col-body';
+        body.id = 'col-' + id + '-body';
+        body.setAttribute('role', 'list');
+        section.appendChild(body);
+
+        return section;
+      }
+
+      // ─────────────────────────────────────────────
+      // カンバンボード描画
+      // ─────────────────────────────────────────────
+
+      function buildBoard() {
+        const root = document.getElementById('kanban-root');
+        while (root.firstChild) root.removeChild(root.firstChild);
+
+        const cats = CHECKLIST_CONFIG.categories;
+        const numCols = cats.length + 1; // カテゴリ列 + 提出済み列
+
+        // グリッド列数を動的設定
+        root.style.gridTemplateColumns = `repeat(${numCols}, 1fr)`;
+
+        // カテゴリ別列を生成
+        cats.forEach(cat => {
+          const label = (cat.icon ? cat.icon + ' ' : '') + cat.label;
+          root.appendChild(createColumn(cat.id, label, false));
+        });
+
+        // 提出済み列
+        root.appendChild(createColumn('done', '提出済み', true));
+
+        // カードを振り分け
+        CHECKLIST_CONFIG.items.forEach(item => {
+          const card = buildCard(item, false);
+          if (checkedSet.has(item.id)) {
+            document.getElementById('col-done-body').appendChild(card);
+          } else {
+            const colBody = document.getElementById('col-' + item.category + '-body');
+            // 対応する列がなければ最初のカテゴリ列にフォールバック
+            const target = colBody || document.getElementById('col-' + cats[0].id + '-body');
+            if (target) target.appendChild(card);
+          }
+        });
+
+        renderEmptyStates();
+      }
+
+      // ─────────────────────────────────────────────
+      // カード生成
+      // ─────────────────────────────────────────────
+
+      /**
+       * @param {{ id:string, label:string, deadline:string, category:string, note:string }} item
+       * @param {boolean} animate
+       * @returns {HTMLElement}
+       */
+      function buildCard(item, animate) {
+        const safeId = truncate(item.id.replace(/[^a-zA-Z0-9_-]/g, ''), 64);
+        const isDone = checkedSet.has(item.id);
+
+        const card = document.createElement('div');
+        card.className = 'kcard' + (isDone ? ' is-done' : '') + (animate ? ' entering' : '');
+        card.id = 'card-' + safeId;
+        card.setAttribute('role', 'listitem');
+        card.setAttribute('tabindex', '0');
+        card.setAttribute('aria-label', item.label + (isDone ? '（提出済み）' : '（未提出）'));
+
+        // Top row
+        const topRow = document.createElement('div');
+        topRow.className = 'kcard-top';
+
+        // Checkbox
+        const cbWrap = document.createElement('div');
+        cbWrap.className = 'kcard-checkbox';
+        cbWrap.setAttribute('aria-hidden', 'true');
+
+        const svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svgEl.setAttribute('viewBox', '0 0 10 10');
+        const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+        poly.setAttribute('points', '1.5,5.5 4,8 8.5,2');
+        svgEl.appendChild(poly);
+        cbWrap.appendChild(svgEl);
+
+        // Label
+        const labelEl = document.createElement('span');
+        labelEl.className = 'kcard-label';
+        safeText(labelEl, item.label);
+
+        topRow.appendChild(cbWrap);
+        topRow.appendChild(labelEl);
+        card.appendChild(topRow);
+
+        // Meta row
+        const metaRow = document.createElement('div');
+        metaRow.className = 'kcard-meta';
+
+        const deadlineBadge = document.createElement('span');
+        deadlineBadge.className = 'badge-deadline';
+        safeText(deadlineBadge, item.deadline || '');
+        metaRow.appendChild(deadlineBadge);
+
+        const catConfig = CHECKLIST_CONFIG.categories.find(c => c.id === item.category);
+        if (catConfig) {
+          const catPill = document.createElement('span');
+          catPill.className = 'badge-cat ' + truncate(item.category, 32);
+          safeText(catPill, catConfig.label);
+          metaRow.appendChild(catPill);
+        }
+
+        card.appendChild(metaRow);
+
+        // Memo row
+        const memoWrap = document.createElement('div');
+        memoWrap.className = 'kcard-memo-wrap';
+
+        const memoInput = document.createElement('input');
+        memoInput.type = 'text';
+        memoInput.className = 'kcard-memo';
+        memoInput.id = 'memo-' + safeId;
+        memoInput.setAttribute('placeholder', 'メモ（提出日時・担当者など）');
+        memoInput.setAttribute('maxlength', '200');
+        memoInput.setAttribute('aria-label', item.label + ' のメモ');
+        memoInput.value = truncate(memoMap[item.id] || item.note || '', 200);
+
+        memoWrap.appendChild(memoInput);
+        card.appendChild(memoWrap);
+
+        // Events
+        card.addEventListener('click', () => toggleCard(item.id));
+        memoInput.addEventListener('click', e => e.stopPropagation());
+        card.addEventListener('keydown', e => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggleCard(item.id);
+          }
+        });
+        memoInput.addEventListener('change', () => saveMemo(item.id, memoInput.value));
+        memoInput.addEventListener('blur', () => saveMemo(item.id, memoInput.value));
+
+        return card;
+      }
+
+      // ─────────────────────────────────────────────
+      // チェック切り替え（アニメーション付き）
+      // ─────────────────────────────────────────────
+
+      /**
+       * チェック状態を切り替える。
+       * チェック時は CHECK_ANIM_MS ms だけ元の列でチェックマークを表示してから移動する。
+       * @param {string} itemId
+       */
+      function toggleCard(itemId) {
+        const item = CHECKLIST_CONFIG.items.find(it => it.id === itemId);
+        if (!item) return;
+
+        const nowDone = !checkedSet.has(itemId);
+        const safeId = itemId.replace(/[^a-zA-Z0-9_-]/g, '');
+        const existing = document.getElementById('card-' + safeId);
+
+        if (nowDone) {
+          // ── チェックを入れる ──
+          checkedSet.add(itemId);
+          saveChecked();
+
+          // 一瞬チェックマークを見せる
+          if (existing) {
+            existing.classList.add('is-checking');
+            // クリック連打を防ぐ
+            existing.style.pointerEvents = 'none';
+          }
+
+          setTimeout(() => {
+            if (existing) existing.remove();
+
+            const newCard = buildCard(item, true);
+            const doneBody = document.getElementById('col-done-body');
+            if (doneBody) doneBody.appendChild(newCard);
+
+            requestAnimationFrame(() => {
+              setTimeout(() => newCard.classList.remove('entering'), 300);
+            });
+
+            renderEmptyStates();
+          }, CHECK_ANIM_MS);
+
+        } else {
+          // ── チェックを外す ──
+          checkedSet.delete(itemId);
+          saveChecked();
+
+          if (existing) existing.remove();
+
+          const newCard = buildCard(item, true);
+          const catColId = 'col-' + item.category + '-body';
+          const catBody = document.getElementById(catColId);
+          const fallback = document.getElementById(
+            'col-' + CHECKLIST_CONFIG.categories[0].id + '-body'
+          );
+          const targetBody = catBody || fallback;
+
+          if (targetBody) insertCardInOrder(newCard, itemId, targetBody);
+
+          requestAnimationFrame(() => {
+            setTimeout(() => newCard.classList.remove('entering'), 300);
+          });
+
+          renderEmptyStates();
+        }
+      }
+
+      /**
+       * config の順序を維持してカードを挿入する
+       * @param {HTMLElement} card
+       * @param {string} itemId
+       * @param {HTMLElement} body
+       */
+      function insertCardInOrder(card, itemId, body) {
+        const allIds = CHECKLIST_CONFIG.items.map(it => it.id);
+        const targetIdx = allIds.indexOf(itemId);
+        const existing = body.querySelectorAll('.kcard');
+
+        let inserted = false;
+        for (const el of existing) {
+          const elRawId = el.id.replace('card-', '');
+          const elItem = CHECKLIST_CONFIG.items.find(
+            it => it.id.replace(/[^a-zA-Z0-9_-]/g, '') === elRawId
+          );
+          if (elItem && allIds.indexOf(elItem.id) > targetIdx) {
+            body.insertBefore(card, el);
+            inserted = true;
+            break;
+          }
+        }
+        if (!inserted) body.appendChild(card);
+      }
+
+      // ─────────────────────────────────────────────
+      // エンプティステート
+      // ─────────────────────────────────────────────
+
+      function renderEmptyStates() {
+        // カテゴリ列
+        CHECKLIST_CONFIG.categories.forEach(cat => {
+          const body = document.getElementById('col-' + cat.id + '-body');
+          if (!body) return;
+          const old = body.querySelector('.col-empty');
+          if (old) old.remove();
+          if (!body.querySelector('.kcard')) {
+            const div = document.createElement('div');
+            div.className = 'col-empty';
+            const span = document.createElement('span');
+            safeText(span, 'すべて提出済みです');
+            div.appendChild(span);
+            body.appendChild(div);
+          }
+        });
+
+        // 提出済み列
+        const doneBody = document.getElementById('col-done-body');
+        if (doneBody) {
+          const old = doneBody.querySelector('.col-empty');
+          if (old) old.remove();
+          if (!doneBody.querySelector('.kcard')) {
+            const div = document.createElement('div');
+            div.className = 'col-empty';
+            const span = document.createElement('span');
+            safeText(span, '提出済みの書類はありません');
+            div.appendChild(span);
+            doneBody.appendChild(div);
+          }
+        }
+      }
+
+      // ─────────────────────────────────────────────
+      // 全クリア
+      // ─────────────────────────────────────────────
+
+      function onClearAll() {
+        checkedSet.clear();
+        memoMap = {};
+        try {
+          localStorage.removeItem(LS_CHECKED);
+          localStorage.removeItem(LS_MEMO);
+        } catch (e) {
+          console.warn('[checklist] リセット時の localStorage 削除に失敗:', e.message);
+        }
+        buildBoard();
+      }
+
+      // ─────────────────────────────────────────────
+      // 初期化
+      // ─────────────────────────────────────────────
+
+      function init() {
+        if (typeof CHECKLIST_CONFIG === 'undefined') {
+          const errEl = document.getElementById('config-error');
+          errEl.style.display = 'block';
+          safeText(errEl,
+            'エラー: config.js が読み込めませんでした。\n' +
+            'index.html と同じフォルダに config.js が存在するか確認してください。\n' +
+            'ブラウザのセキュリティ設定により file:// では外部スクリプトが読み込めない場合があります。'
+          );
+          return;
+        }
+
+        const errors = validateConfig();
+        if (errors.length > 0) {
+          const errEl = document.getElementById('config-error');
+          errEl.style.display = 'block';
+          safeText(errEl, '設定ファイルにエラーがあります:\n\n' + errors.join('\n'));
+          return;
+        }
+
+        const titleText = truncate(String(CHECKLIST_CONFIG.appTitle || '提出物チェックリスト'), 80);
+        document.title = titleText;
+        safeText(document.getElementById('app-title-heading'), titleText);
+        // header-subtitle は非表示（不要のため削除）
+
+        const footerText = truncate(String(CHECKLIST_CONFIG.footerText || ''), 300);
+        if (footerText) {
+          safeText(document.getElementById('app-footer'), footerText);
+        }
+
+        loadState();
+        buildBoard();
+
+        document.getElementById('btn-clear').addEventListener('click', onClearAll);
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+
+    }());
+  </script>
+</body>
+
+</html>
