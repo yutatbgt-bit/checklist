@@ -33,6 +33,8 @@
       --text-sub: #64748b;
       --text-muted: #94a3b8;
 
+      --pill-daily-bg: #fef3c7;
+      --pill-daily-fg: #92400e;
       --pill-monthly-bg: #eff6ff;
       --pill-monthly-fg: #1d4ed8;
       --pill-weekly-bg: #faf5ff;
@@ -84,7 +86,7 @@
     }
 
     .header-inner {
-      max-width: 1400px;
+      max-width: 1600px;
       margin: 0 auto;
       padding: 0 28px;
       height: 58px;
@@ -97,7 +99,16 @@
     .header-left {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 9px;
+    }
+
+    .header-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #eab308;
+      box-shadow: 0 0 0 2.5px rgba(234, 179, 8, 0.25);
+      flex-shrink: 0;
     }
 
     .header-logo {
@@ -139,10 +150,10 @@
     .btn-clear {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-      padding: 6px 14px;
+      gap: 4px;
+      padding: 3px 10px;
       border-radius: var(--radius-sm);
-      font-size: 0.78rem;
+      font-size: 0.74rem;
       font-weight: 600;
       font-family: var(--font);
       cursor: pointer;
@@ -167,12 +178,12 @@
        Kanban Layout — 3列 (動的生成)
     ═══════════════════════════════════════════ */
     .kanban-root {
-      max-width: 1400px;
+      max-width: 1600px;
       margin: 0 auto;
       padding: 28px 28px 60px;
       display: grid;
-      /* JS で grid-template-columns を上書き */
-      grid-template-columns: repeat(3, 1fr);
+      /* JS で grid-template-columns を動的設定 (初期値4列) */
+      grid-template-columns: repeat(4, 1fr);
       gap: 20px;
       align-items: start;
     }
@@ -433,6 +444,11 @@
       letter-spacing: 0.03em;
     }
 
+    .badge-cat.daily {
+      background: var(--pill-daily-bg);
+      color: var(--pill-daily-fg);
+    }
+
     .badge-cat.monthly {
       background: var(--pill-monthly-bg);
       color: var(--pill-monthly-fg);
@@ -504,7 +520,14 @@
     /* ═══════════════════════════════════════════
        Responsive
     ═══════════════════════════════════════════ */
-    @media (max-width: 860px) {
+    @media (max-width: 1200px) {
+      .kanban-root {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 16px;
+      }
+    }
+
+    @media (max-width: 700px) {
       .kanban-root {
         grid-template-columns: 1fr !important;
         padding: 16px;
@@ -543,9 +566,9 @@
   <header class="app-header" role="banner">
     <div class="header-inner">
       <div class="header-left">
-        <h1 class="header-title" id="app-title-heading">提出物リスト</h1>
+        <span class="header-dot" aria-hidden="true"></span>
+        <h1 class="header-title" id="app-title-heading">チェックリスト</h1>
       </div>
-      <button class="btn-clear" id="btn-clear" aria-label="全クリア">全クリア</button>
     </div>
   </header>
 
@@ -558,8 +581,161 @@
   <!-- フッター -->
   <footer class="app-footer" id="app-footer" role="contentinfo"></footer>
 
-  <!-- 設定ファイル -->
-  <script src="config.js"></script>
+  <!-- ═══════════════════════════════════════════════════════════════
+       設定データ (CHECKLIST_CONFIG)
+       項目の追加・変更・削除はこのブロックを編集してください。
+  ═══════════════════════════════════════════════════════════════ -->
+  <script>
+    /**
+     * 提出物チェックリスト — 設定データ
+     *
+     * 各項目フィールドの説明:
+     *   id       : 内部識別子（英数字・アンダースコアのみ / 他の項目と重複禁止）
+     *   label    : 画面に表示される提出物名
+     *   deadline : 期限テキスト（画面に表示されるだけ / 自由記述）
+     *   category : グループ分けカテゴリ（categories に定義した id と一致させる）
+     *   note     : 備考の初期値（空文字で「なし」）
+     */
+    const CHECKLIST_CONFIG = {
+
+      /** アプリのタイトル（ヘッダーに表示） */
+      appTitle: "チェックリスト",
+
+      /** フッターに表示する補足テキスト（不要なら空文字 "" にする） */
+      footerText: "チェック状態はこのPCのブラウザに保存されます。クリア後は再入力してください。",
+
+      /**
+       * カテゴリ定義
+       *   id    : items の category フィールドと一致させる
+       *   label : 見出しとして表示される名称
+       *   icon  : 見出し横の絵文字アイコン（省略可）
+       */
+      categories: [
+        { id: "daily", label: "日次" },
+        { id: "weekly", label: "週次提出" },
+        { id: "monthly", label: "月次提出" },
+      ],
+
+      /**
+       * チェックリスト項目
+       * ※ id は重複しないようにしてください
+       */
+      items: [
+        {
+          id: "daily_shift_plan",
+          label: "日別シフト計画表確認",
+          deadline: "毎日",
+          category: "daily",
+          note: ""
+        },
+        {
+          id: "manufacturing_plan",
+          label: "製造計画表確認(格納)",
+          deadline: "毎日",
+          category: "daily",
+          note: ""
+        },
+        {
+          id: "quality_abnormal_report",
+          label: "品質異常報告書(随時)",
+          deadline: "随時",
+          category: "daily",
+          note: ""
+        },
+        {
+          id: "customer_voice",
+          label: "お客様の声(随時)",
+          deadline: "随時",
+          category: "daily",
+          note: ""
+        },
+        {
+          id: "priority_item_improvement_image",
+          label: "重点商品改善画像(13時迄)",
+          deadline: "13時迄",
+          category: "daily",
+          note: ""
+        },
+        {
+          id: "store_manager_schedule",
+          label: "店長行動スケジュール(毎週月曜日)",
+          deadline: "毎週月曜日",
+          category: "weekly",
+          note: ""
+        },
+        {
+          id: "weekly_performance",
+          label: "週間業績報告書",
+          deadline: "毎週日曜日（案内）〆",
+          category: "weekly",
+          note: ""
+        },
+        {
+          id: "flyer_image",
+          label: "チラシ掲載商品売場画像",
+          deadline: "毎週土曜日",
+          category: "weekly",
+          note: ""
+        },
+        {
+          id: "monthly_report",
+          label: "月次報告書",
+          deadline: "7日頃（案内）〆",
+          category: "monthly",
+          note: ""
+        },
+        {
+          id: "abnormal_report",
+          label: "異常値報告書（中間/期末）",
+          deadline: "19日 / 4日〆",
+          category: "monthly",
+          note: ""
+        },
+        {
+          id: "daily_budget",
+          label: "日割り予算",
+          deadline: "毎月20日〆",
+          category: "monthly",
+          note: ""
+        },
+        {
+          id: "interim_report",
+          label: "中間報告書",
+          deadline: "21日頃（案内）〆",
+          category: "monthly",
+          note: ""
+        },
+        {
+          id: "5s_improvement",
+          label: "5S改善項目一覧",
+          deadline: "月末〆",
+          category: "monthly",
+          note: ""
+        },
+        {
+          id: "end_plan",
+          label: "エンド計画表",
+          deadline: "月末〆",
+          category: "monthly",
+          note: ""
+        },
+        {
+          id: "expiry_check",
+          label: "賞味期限チェック表",
+          deadline: "月末〆",
+          category: "monthly",
+          note: ""
+        },
+        {
+          id: "out_of_stock_checklist",
+          label: "欠品チェックリスト(月末)",
+          deadline: "月末〆",
+          category: "monthly",
+          note: ""
+        },
+      ]
+    };
+  </script>
 
   <!-- アプリロジック -->
   <script>
@@ -601,7 +777,7 @@
       function validateConfig() {
         const errors = [];
         if (typeof CHECKLIST_CONFIG !== 'object' || CHECKLIST_CONFIG === null) {
-          errors.push('CHECKLIST_CONFIG が定義されていません。config.js を確認してください。');
+          errors.push('CHECKLIST_CONFIG が定義されていません。HTML内の設定データブロックを確認してください。');
           return errors;
         }
         if (!Array.isArray(CHECKLIST_CONFIG.items) || CHECKLIST_CONFIG.items.length === 0) {
@@ -633,7 +809,7 @@
       /** @type {Set<string>} */
       let checkedSet = new Set();
       /** @type {Object<string,string>} */
-      let memoMap = {};
+      let memoMap = Object.create(null);
 
       function loadState() {
         try {
@@ -649,10 +825,16 @@
           if (raw) {
             const parsed = JSON.parse(raw);
             if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-              memoMap = parsed;
+              const cleanMap = Object.create(null);
+              for (const [k, v] of Object.entries(parsed)) {
+                if (typeof k === 'string' && typeof v === 'string') {
+                  cleanMap[k] = truncate(v, 200);
+                }
+              }
+              memoMap = cleanMap;
             }
           }
-        } catch (_) { memoMap = {}; }
+        } catch (_) { memoMap = Object.create(null); }
       }
 
       function saveChecked() {
@@ -706,6 +888,17 @@
         headerLeft.appendChild(dot);
         headerLeft.appendChild(titleSpan);
         header.appendChild(headerLeft);
+
+        if (isDone) {
+          const clearBtn = document.createElement('button');
+          clearBtn.className = 'btn-clear';
+          clearBtn.id = 'btn-clear';
+          clearBtn.setAttribute('aria-label', 'クリア');
+          safeText(clearBtn, 'クリア');
+          clearBtn.addEventListener('click', onClearAll);
+          header.appendChild(clearBtn);
+        }
+
         section.appendChild(header);
 
         const body = document.createElement('div');
@@ -805,10 +998,12 @@
         const metaRow = document.createElement('div');
         metaRow.className = 'kcard-meta';
 
-        const deadlineBadge = document.createElement('span');
-        deadlineBadge.className = 'badge-deadline';
-        safeText(deadlineBadge, item.deadline || '');
-        metaRow.appendChild(deadlineBadge);
+        if (item.deadline) {
+          const deadlineBadge = document.createElement('span');
+          deadlineBadge.className = 'badge-deadline';
+          safeText(deadlineBadge, item.deadline);
+          metaRow.appendChild(deadlineBadge);
+        }
 
         const catConfig = CHECKLIST_CONFIG.categories.find(c => c.id === item.category);
         if (catConfig) {
@@ -828,7 +1023,7 @@
         memoInput.type = 'text';
         memoInput.className = 'kcard-memo';
         memoInput.id = 'memo-' + safeId;
-        memoInput.setAttribute('placeholder', 'メモ（提出日時・担当者など）');
+        memoInput.setAttribute('placeholder', 'メモ（提出日時・進捗など）');
         memoInput.setAttribute('maxlength', '200');
         memoInput.setAttribute('aria-label', item.label + ' のメモ');
         memoInput.value = truncate(memoMap[item.id] || item.note || '', 200);
@@ -983,12 +1178,12 @@
       }
 
       // ─────────────────────────────────────────────
-      // 全クリア
+      // クリア
       // ─────────────────────────────────────────────
 
       function onClearAll() {
         checkedSet.clear();
-        memoMap = {};
+        memoMap = Object.create(null);
         try {
           localStorage.removeItem(LS_CHECKED);
           localStorage.removeItem(LS_MEMO);
@@ -1007,9 +1202,8 @@
           const errEl = document.getElementById('config-error');
           errEl.style.display = 'block';
           safeText(errEl,
-            'エラー: config.js が読み込めませんでした。\n' +
-            'index.html と同じフォルダに config.js が存在するか確認してください。\n' +
-            'ブラウザのセキュリティ設定により file:// では外部スクリプトが読み込めない場合があります。'
+            'エラー: 設定データ（CHECKLIST_CONFIG）が定義されていません。\n' +
+            'HTML内の設定データブロック（CHECKLIST_CONFIG）が正しく記載されているか確認してください。'
           );
           return;
         }
@@ -1035,7 +1229,7 @@
         loadState();
         buildBoard();
 
-        document.getElementById('btn-clear').addEventListener('click', onClearAll);
+// クリアボタンのイベントは createColumn 内で提出済み列生成時に設定
       }
 
       if (document.readyState === 'loading') {
