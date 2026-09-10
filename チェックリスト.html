@@ -6,9 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'self';">
-  <meta name="description" content="提出物リスト — 提出期限と状況を管理するツール">
+  <meta name="description" content="チェックリスト — 提出期限と状況を管理するツール">
   <meta name="referrer" content="no-referrer">
-  <title>提出物リスト</title>
+  <title>チェックリスト</title>
   <style>
     /* ═══════════════════════════════════════════
        Design Tokens — Light / Business
@@ -174,6 +174,36 @@
       transform: scale(0.97);
     }
 
+    /* ─── Header Reset Button ─── */
+    .btn-reset {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 0.76rem;
+      font-weight: 600;
+      font-family: var(--font);
+      cursor: pointer;
+      border: 1px solid var(--border-base);
+      background: #ffffff;
+      color: var(--text-sub);
+      transition: all var(--tr);
+      white-space: nowrap;
+    }
+
+    .btn-reset:hover {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+      color: var(--text-h);
+      box-shadow: var(--shadow-xs);
+      transform: translateY(-0.5px);
+    }
+
+    .btn-reset:active {
+      transform: scale(0.97);
+    }
+
     /* ═══════════════════════════════════════════
        Kanban Layout — 3列 (動的生成)
     ═══════════════════════════════════════════ */
@@ -186,6 +216,174 @@
       grid-template-columns: repeat(4, 1fr);
       gap: 20px;
       align-items: start;
+    }
+
+    /* ─── Add Item Button in Column Header ─── */
+    .btn-add-item {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: var(--radius-sm);
+      font-size: 0.95rem;
+      font-weight: 700;
+      line-height: 1;
+      cursor: pointer;
+      border: 1px solid var(--border-base);
+      background: #ffffff;
+      color: var(--text-sub);
+      transition: all var(--tr);
+    }
+
+    .btn-add-item:hover {
+      background: #eff6ff;
+      border-color: var(--accent-primary);
+      color: var(--accent-primary);
+      box-shadow: 0 1px 4px rgba(37, 99, 235, 0.15);
+    }
+
+    .btn-add-item:active {
+      transform: scale(0.94);
+    }
+
+    /* ─── Delete Button for Cards (Hover Display) ─── */
+    .btn-card-delete {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 1rem;
+      font-weight: 700;
+      line-height: 1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--tr);
+      opacity: 0;
+      visibility: hidden;
+      margin-left: 6px;
+      flex-shrink: 0;
+    }
+
+    .kcard:hover .btn-card-delete,
+    .btn-card-delete:focus-visible {
+      opacity: 0.6;
+      visibility: visible;
+    }
+
+    .btn-card-delete:hover {
+      background: #fee2e2;
+      color: var(--accent-danger);
+      opacity: 1;
+      transform: scale(1.15);
+    }
+
+    /* ─── Inline Card Creation Form ─── */
+    .kcard-form {
+      border: 1.5px dashed var(--accent-primary) !important;
+      background: #ffffff !important;
+      cursor: default !important;
+      box-shadow: 0 3px 10px rgba(37, 99, 235, 0.08) !important;
+      transform: none !important;
+    }
+
+    .kcard-checkbox.is-dummy {
+      border-style: dashed;
+      cursor: default;
+    }
+
+    .kcard-input-title {
+      flex: 1;
+      border: 1px solid var(--border-base);
+      border-radius: var(--radius-sm);
+      padding: 5px 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      font-family: var(--font);
+      color: var(--text-h);
+      outline: none;
+      transition: border-color var(--tr), box-shadow var(--tr);
+    }
+
+    .kcard-input-title:focus {
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 2.5px rgba(37, 99, 235, 0.12);
+    }
+
+    .kcard-input-title.is-invalid {
+      border-color: var(--accent-danger);
+      box-shadow: 0 0 0 2.5px rgba(220, 38, 38, 0.12);
+    }
+
+    .kcard-form-row {
+      margin-top: 8px;
+      padding-left: 28px;
+    }
+
+    .kcard-input-deadline {
+      width: 100%;
+      border: 1px solid var(--border-base);
+      border-radius: var(--radius-sm);
+      padding: 4px 8px;
+      font-size: 0.74rem;
+      font-family: var(--font);
+      color: var(--text-body);
+      outline: none;
+      transition: border-color var(--tr), box-shadow var(--tr);
+    }
+
+    .kcard-input-deadline:focus {
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 2.5px rgba(37, 99, 235, 0.12);
+    }
+
+    .kcard-form-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 10px;
+      padding-left: 28px;
+    }
+
+    .btn-form-submit {
+      padding: 4px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 0.74rem;
+      font-weight: 600;
+      font-family: var(--font);
+      background: var(--accent-primary);
+      color: #ffffff;
+      border: none;
+      cursor: pointer;
+      transition: all var(--tr);
+    }
+
+    .btn-form-submit:hover {
+      background: #1d4ed8;
+      box-shadow: 0 2px 5px rgba(37, 99, 235, 0.25);
+    }
+
+    .btn-form-cancel {
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 0.74rem;
+      font-weight: 500;
+      font-family: var(--font);
+      background: transparent;
+      color: var(--text-sub);
+      border: 1px solid var(--border-base);
+      cursor: pointer;
+      transition: all var(--tr);
+    }
+
+    .btn-form-cancel:hover {
+      background: #f1f5f9;
+      color: var(--text-h);
     }
 
     /* ─── Column ─── */
@@ -255,6 +453,41 @@
       padding: 28px 16px;
       color: var(--text-muted);
       font-size: 0.8rem;
+    }
+
+    /* ─── Drag & Drop ─── */
+    .kcard.is-dragging {
+      opacity: 0.38 !important;
+      transform: scale(0.98) !important;
+      border: 1.5px dashed var(--accent-primary) !important;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.15) !important;
+      cursor: grabbing !important;
+    }
+
+    .kcard-drag-handle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 12px;
+      height: 18px;
+      color: var(--text-muted);
+      cursor: grab;
+      opacity: 0.35;
+      flex-shrink: 0;
+      transition: opacity var(--tr), color var(--tr);
+      margin-right: 2px;
+    }
+
+    .kcard:hover .kcard-drag-handle {
+      opacity: 0.85;
+      color: var(--accent-primary);
+    }
+
+    .col-body.drag-over {
+      background: rgba(37, 99, 235, 0.035);
+      border-radius: var(--radius-md);
+      outline: 1.5px dashed rgba(37, 99, 235, 0.3);
+      outline-offset: -2px;
     }
 
     /* ═══════════════════════════════════════════
@@ -390,19 +623,89 @@
       transform: scale(1);
     }
 
-    /* Label */
+    /* Label (Inline Editable) */
     .kcard-label {
       flex: 1;
       font-size: 0.875rem;
       font-weight: 600;
       color: var(--text-h);
       line-height: 1.4;
-      transition: color var(--tr);
+      transition: color var(--tr), background-color var(--tr), border-color var(--tr);
+      cursor: text;
+      padding: 1px 4px;
+      margin: -1px -4px;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+    }
+
+    .kcard-label:hover {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
     }
 
     .kcard.is-done .kcard-label {
       color: #166534;
       font-weight: 700;
+    }
+
+    .kcard.is-done .kcard-label:hover {
+      background: #dcfce7;
+      border-color: #86efac;
+    }
+
+    .kcard-label-input {
+      flex: 1;
+      font-family: var(--font);
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-h);
+      line-height: 1.4;
+      padding: 1px 4px;
+      margin: -1px -4px;
+      border: 1.5px solid var(--accent-primary);
+      border-radius: var(--radius-sm);
+      outline: none;
+      background: #ffffff;
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+    }
+
+    /* ─── Deadline Badge (Inline Editable) ─── */
+    .badge-deadline {
+      cursor: text;
+      transition: all var(--tr);
+      user-select: none;
+    }
+
+    .badge-deadline:hover {
+      border-color: #f59e0b;
+      box-shadow: 0 0 0 1.5px rgba(245, 158, 11, 0.25);
+    }
+
+    .badge-deadline.is-empty {
+      background: transparent;
+      border-style: dashed;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .badge-deadline.is-empty:hover {
+      background: #fffbeb;
+      color: #92400e;
+      border-style: solid;
+    }
+
+    .badge-deadline-input {
+      font-family: var(--font);
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 3px;
+      background: #ffffff;
+      color: #92400e;
+      border: 1.5px solid var(--accent-primary);
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+      width: 140px;
     }
 
     /* ─── Card meta row ─── */
@@ -548,8 +851,11 @@
         border-bottom: 1px solid #ccc;
       }
 
-      .btn-clear {
-        display: none;
+      .btn-clear,
+      .btn-reset,
+      .btn-add-item,
+      .btn-card-delete {
+        display: none !important;
       }
 
       .kcard {
@@ -569,6 +875,13 @@
         <span class="header-dot" aria-hidden="true"></span>
         <h1 class="header-title" id="app-title-heading">チェックリスト</h1>
       </div>
+      <button class="btn-reset" id="btn-reset" aria-label="初期状態にリセット" title="すべてのタスク・順序・編集内容を現在の初期状態に戻します">
+        <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M2.5 8a5.5 5.5 0 1 0 1.2-3.4L1.5 6"/>
+          <path d="M1.5 2v4h4"/>
+        </svg>
+        リセット
+      </button>
     </div>
   </header>
 
@@ -748,6 +1061,10 @@
       const LS_PREFIX = 'checklist_v1_';
       const LS_CHECKED = LS_PREFIX + 'checked';
       const LS_MEMO = LS_PREFIX + 'memo';
+      const LS_CUSTOM_ITEMS = LS_PREFIX + 'custom_items';
+      const LS_DELETED_ITEMS = LS_PREFIX + 'deleted_items';
+      const LS_ORDER = LS_PREFIX + 'order';
+      const LS_EDITS = LS_PREFIX + 'edits';
 
       /**
        * カードが移動するまでのチェックマーク表示時間 (ms)
@@ -810,6 +1127,41 @@
       let checkedSet = new Set();
       /** @type {Object<string,string>} */
       let memoMap = Object.create(null);
+      /** @type {Array<Object>} */
+      let customItems = [];
+      /** @type {Set<string>} */
+      let deletedItemIds = new Set();
+      /** @type {Array<string>} ユーザーが並び替えたアイテムID順序リスト */
+      let itemOrderList = [];
+      /** @type {Object<string, {label?: string, deadline?: string}>} 編集済みタスク名・締切マップ */
+      let itemEditsMap = Object.create(null);
+
+      function getAllItems() {
+        const rawList = [...CHECKLIST_CONFIG.items, ...customItems].filter(
+          item => !deletedItemIds.has(item.id)
+        ).map(item => {
+          const edit = itemEditsMap[item.id];
+          if (edit) {
+            return {
+              ...item,
+              label: edit.label !== undefined ? edit.label : item.label,
+              deadline: edit.deadline !== undefined ? edit.deadline : item.deadline
+            };
+          }
+          return item;
+        });
+
+        if (!itemOrderList || itemOrderList.length === 0) return rawList;
+
+        const orderMap = new Map();
+        itemOrderList.forEach((id, idx) => orderMap.set(id, idx));
+
+        return rawList.sort((a, b) => {
+          const idxA = orderMap.has(a.id) ? orderMap.get(a.id) : 9999;
+          const idxB = orderMap.has(b.id) ? orderMap.get(b.id) : 9999;
+          return idxA - idxB;
+        });
+      }
 
       function loadState() {
         try {
@@ -835,6 +1187,65 @@
             }
           }
         } catch (_) { memoMap = Object.create(null); }
+
+        try {
+          const rawCustom = localStorage.getItem(LS_CUSTOM_ITEMS);
+          if (rawCustom) {
+            const parsed = JSON.parse(rawCustom);
+            if (Array.isArray(parsed)) {
+              customItems = parsed.filter(it =>
+                it && typeof it === 'object' &&
+                typeof it.id === 'string' &&
+                typeof it.label === 'string' &&
+                typeof it.category === 'string'
+              ).map(it => ({
+                id: truncate(it.id.replace(/[^a-zA-Z0-9_-]/g, ''), 64),
+                label: truncate(String(it.label), 100),
+                deadline: truncate(String(it.deadline || ''), 50),
+                category: truncate(String(it.category), 32),
+                note: truncate(String(it.note || ''), 200),
+                isCustom: true
+              }));
+            }
+          }
+        } catch (_) { customItems = []; }
+
+        try {
+          const rawDeleted = localStorage.getItem(LS_DELETED_ITEMS);
+          if (rawDeleted) {
+            const parsed = JSON.parse(rawDeleted);
+            if (Array.isArray(parsed)) deletedItemIds = new Set(parsed);
+          }
+        } catch (_) { deletedItemIds = new Set(); }
+
+        try {
+          const rawOrder = localStorage.getItem(LS_ORDER);
+          if (rawOrder) {
+            const parsed = JSON.parse(rawOrder);
+            if (Array.isArray(parsed)) {
+              itemOrderList = parsed.filter(id => typeof id === 'string');
+            }
+          }
+        } catch (_) { itemOrderList = []; }
+
+        try {
+          const rawEdits = localStorage.getItem(LS_EDITS);
+          if (rawEdits) {
+            const parsed = JSON.parse(rawEdits);
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+              const cleanEdits = Object.create(null);
+              for (const [k, v] of Object.entries(parsed)) {
+                if (typeof k === 'string' && v && typeof v === 'object') {
+                  cleanEdits[k] = {
+                    label: typeof v.label === 'string' ? truncate(v.label, 100) : undefined,
+                    deadline: typeof v.deadline === 'string' ? truncate(v.deadline, 50) : undefined,
+                  };
+                }
+              }
+              itemEditsMap = cleanEdits;
+            }
+          }
+        } catch (_) { itemEditsMap = Object.create(null); }
       }
 
       function saveChecked() {
@@ -852,6 +1263,410 @@
         } catch (e) {
           console.warn('[checklist] localStorage (memo) 書き込み失敗:', e.message);
         }
+      }
+
+      function saveCustomItems() {
+        try {
+          localStorage.setItem(LS_CUSTOM_ITEMS, JSON.stringify(customItems));
+        } catch (e) {
+          console.warn('[checklist] localStorage (custom items) 書き込み失敗:', e.message);
+        }
+      }
+
+      function addCustomItem(category, label, deadline) {
+        const id = 'custom_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+        const newItem = {
+          id: id,
+          label: truncate(label.trim(), 100),
+          deadline: truncate(deadline.trim(), 50),
+          category: category,
+          note: '',
+          isCustom: true
+        };
+        customItems.push(newItem);
+        saveCustomItems();
+        buildBoard();
+      }
+
+      function saveDeletedItems() {
+        try {
+          localStorage.setItem(LS_DELETED_ITEMS, JSON.stringify([...deletedItemIds]));
+        } catch (e) {
+          console.warn('[checklist] localStorage (deleted items) 書き込み失敗:', e.message);
+        }
+      }
+
+      function saveItemOrder() {
+        try {
+          localStorage.setItem(LS_ORDER, JSON.stringify(itemOrderList));
+        } catch (e) {
+          console.warn('[checklist] localStorage (order) 書き込み失敗:', e.message);
+        }
+      }
+
+      function saveItemEdits() {
+        try {
+          localStorage.setItem(LS_EDITS, JSON.stringify(itemEditsMap));
+        } catch (e) {
+          console.warn('[checklist] localStorage (edits) 書き込み失敗:', e.message);
+        }
+      }
+
+      /** タスク名または締切のインライン編集を永続化 */
+      function updateItemField(itemId, field, value) {
+        const cleanVal = truncate(value.trim(), field === 'label' ? 100 : 50);
+
+        // カスタムアイテム配列を更新
+        const cItem = customItems.find(it => it.id === itemId);
+        if (cItem) {
+          cItem[field] = cleanVal;
+          saveCustomItems();
+        }
+
+        // デフォルトアイテムも含めて編集マップに記録
+        if (!itemEditsMap[itemId]) {
+          itemEditsMap[itemId] = {};
+        }
+        itemEditsMap[itemId][field] = cleanVal;
+        saveItemEdits();
+      }
+
+      /** ボード上の現DOM要素の順序を収集して保存 */
+      function updateAndSaveOrder() {
+        const cards = document.querySelectorAll('.kanban-root .kcard:not(.kcard-form)');
+        const newOrder = [];
+        cards.forEach(card => {
+          const rawId = card.id.replace('card-', '');
+          const it = getAllItems().find(
+            item => item.id.replace(/[^a-zA-Z0-9_-]/g, '') === rawId
+          );
+          if (it && !newOrder.includes(it.id)) {
+            newOrder.push(it.id);
+          }
+        });
+
+        // 提出済み等にある未表示アイテムの順序も末尾に保持
+        getAllItems().forEach(item => {
+          if (!newOrder.includes(item.id)) {
+            newOrder.push(item.id);
+          }
+        });
+
+        itemOrderList = newOrder;
+        saveItemOrder();
+      }
+
+      /** キーボード操作によるカード移動（Alt + ↑/↓） */
+      function moveCardByStep(itemId, step) {
+        const item = getAllItems().find(it => it.id === itemId);
+        if (!item) return;
+
+        const isDone = checkedSet.has(itemId);
+        const colId = isDone ? 'col-done-body' : 'col-' + item.category + '-body';
+        const body = document.getElementById(colId);
+        if (!body) return;
+
+        const cards = [...body.querySelectorAll('.kcard:not(.kcard-form)')];
+        const cardIds = cards.map(c => {
+          const raw = c.id.replace('card-', '');
+          const match = getAllItems().find(it => it.id.replace(/[^a-zA-Z0-9_-]/g, '') === raw);
+          return match ? match.id : null;
+        }).filter(Boolean);
+
+        const curIdx = cardIds.indexOf(itemId);
+        if (curIdx === -1) return;
+
+        const targetIdx = curIdx + step;
+        if (targetIdx < 0 || targetIdx >= cardIds.length) return;
+
+        // 列内の位置を入れ替え
+        cardIds.splice(curIdx, 1);
+        cardIds.splice(targetIdx, 0, itemId);
+
+        const remaining = itemOrderList.filter(id => !cardIds.includes(id));
+        itemOrderList = [...cardIds, ...remaining];
+        saveItemOrder();
+
+        buildBoard();
+
+        const safeId = itemId.replace(/[^a-zA-Z0-9_-]/g, '');
+        const movedCard = document.getElementById('card-' + safeId);
+        if (movedCard) movedCard.focus();
+      }
+
+      // ── ドラッグ＆ドロップ用イベントハンドラ＆オートスクロール ──
+      let isDraggingActive = false;
+      let autoScrollRafId = null;
+      let autoScrollVelocity = 0;
+      let lastClientX = null;
+      let lastClientY = null;
+
+      /** 画面端へのドラッグ時にスクロール速度を算出 */
+      function updateAutoScrollVelocity(clientY) {
+        const topThreshold = 140; // ヘッダー高さを考慮した上端検知ゾーン (px)
+        const bottomThreshold = window.innerHeight - 100; // 下端検知ゾーン (px)
+        const maxSpeed = 22; // 最大スクロール速度 (px/frame)
+
+        if (clientY < topThreshold) {
+          // 上端に近いほど速く上スクロール
+          const ratio = (topThreshold - Math.max(0, clientY)) / topThreshold;
+          autoScrollVelocity = -Math.max(4, Math.round(ratio * maxSpeed));
+        } else if (clientY > bottomThreshold) {
+          // 下端に近いほど速く下スクロール
+          const ratio = (clientY - bottomThreshold) / 100;
+          autoScrollVelocity = Math.max(4, Math.round(Math.min(1, ratio) * maxSpeed));
+        } else {
+          autoScrollVelocity = 0;
+        }
+      }
+
+      /** requestAnimationFrame によるスムーズな自動スクロールループ */
+      function autoScrollLoop() {
+        if (!isDraggingActive) {
+          autoScrollRafId = null;
+          autoScrollVelocity = 0;
+          return;
+        }
+
+        if (autoScrollVelocity !== 0) {
+          window.scrollBy({ top: autoScrollVelocity, left: 0, behavior: 'auto' });
+
+          // スクロール中もマウス直下の要素を検知してカード挿入位置を継続更新
+          const draggingCard = document.querySelector('.kcard.is-dragging');
+          if (draggingCard && lastClientX !== null && lastClientY !== null) {
+            const elemBelow = document.elementFromPoint(lastClientX, lastClientY);
+            const body = elemBelow ? elemBelow.closest('.col-body') : null;
+            if (body && body.dataset.colId === draggingCard.dataset.colId) {
+              const afterElement = getDragAfterElement(body, lastClientY);
+              if (afterElement == null) {
+                body.appendChild(draggingCard);
+              } else {
+                body.insertBefore(draggingCard, afterElement);
+              }
+            }
+          }
+        }
+
+        autoScrollRafId = requestAnimationFrame(autoScrollLoop);
+      }
+
+      function startAutoScroll() {
+        if (!autoScrollRafId) {
+          autoScrollRafId = requestAnimationFrame(autoScrollLoop);
+        }
+      }
+
+      function stopAutoScroll() {
+        if (autoScrollRafId) {
+          cancelAnimationFrame(autoScrollRafId);
+          autoScrollRafId = null;
+        }
+        autoScrollVelocity = 0;
+        lastClientX = null;
+        lastClientY = null;
+      }
+
+      function handleColDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        lastClientX = e.clientX;
+        lastClientY = e.clientY;
+        updateAutoScrollVelocity(e.clientY);
+
+        const body = e.currentTarget;
+        const draggingCard = document.querySelector('.kcard.is-dragging');
+        if (!draggingCard) return;
+
+        // 同一カテゴリ列内での並び替えを保証
+        if (draggingCard.dataset.colId !== body.dataset.colId) return;
+
+        body.classList.add('drag-over');
+
+        const afterElement = getDragAfterElement(body, e.clientY);
+        if (afterElement == null) {
+          body.appendChild(draggingCard);
+        } else {
+          body.insertBefore(draggingCard, afterElement);
+        }
+      }
+
+      function handleColDragLeave(e) {
+        if (!e.currentTarget.contains(e.relatedTarget)) {
+          e.currentTarget.classList.remove('drag-over');
+        }
+      }
+
+      function handleColDrop(e) {
+        e.preventDefault();
+        stopAutoScroll();
+        e.currentTarget.classList.remove('drag-over');
+        updateAndSaveOrder();
+        renderEmptyStates();
+      }
+
+      function getDragAfterElement(container, y) {
+        const draggableElements = [
+          ...container.querySelectorAll('.kcard:not(.is-dragging):not(.kcard-form)')
+        ];
+
+        return draggableElements.reduce((closest, child) => {
+          const box = child.getBoundingClientRect();
+          const offset = y - box.top - box.height / 2;
+          if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+          } else {
+            return closest;
+          }
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+      }
+
+      // ウィンドウ全体でドラッグ位置と終了イベントを監視
+      window.addEventListener('dragover', e => {
+        if (!isDraggingActive) return;
+        lastClientX = e.clientX;
+        lastClientY = e.clientY;
+        updateAutoScrollVelocity(e.clientY);
+      });
+
+      window.addEventListener('dragend', () => {
+        stopAutoScroll();
+      });
+
+      window.addEventListener('drop', () => {
+        stopAutoScroll();
+      });
+
+      function deleteItem(itemId) {
+        // カスタム項目一覧から削除（該当する場合）
+        customItems = customItems.filter(it => it.id !== itemId);
+        saveCustomItems();
+
+        // 削除済みIDセットに記録（デフォルト項目の非表示永続化）
+        deletedItemIds.add(itemId);
+        saveDeletedItems();
+
+        // チェック状態・メモの削除
+        checkedSet.delete(itemId);
+        delete memoMap[itemId];
+        saveChecked();
+        saveMemo(itemId, '');
+        buildBoard();
+      }
+
+      function showAddCardForm(catId) {
+        const body = document.getElementById('col-' + catId + '-body');
+        if (!body) return;
+
+        const existingForm = document.querySelector('.kcard-form');
+        if (existingForm) {
+          const isSameCol = existingForm.closest('#col-' + catId + '-body');
+          if (isSameCol) {
+            const input = existingForm.querySelector('.kcard-input-title');
+            if (input) input.focus();
+            return;
+          }
+          existingForm.remove();
+        }
+
+        const formCard = document.createElement('div');
+        formCard.className = 'kcard kcard-form';
+
+        const topRow = document.createElement('div');
+        topRow.className = 'kcard-top';
+
+        const cbWrap = document.createElement('div');
+        cbWrap.className = 'kcard-checkbox is-dummy';
+        cbWrap.setAttribute('aria-hidden', 'true');
+        topRow.appendChild(cbWrap);
+
+        const titleInput = document.createElement('input');
+        titleInput.type = 'text';
+        titleInput.className = 'kcard-input-title';
+        titleInput.placeholder = '新しいタスク名を入力...';
+        titleInput.maxLength = 100;
+        titleInput.setAttribute('aria-label', '新しいタスク名');
+        topRow.appendChild(titleInput);
+        formCard.appendChild(topRow);
+
+        const metaRow = document.createElement('div');
+        metaRow.className = 'kcard-form-row';
+
+        const deadlineInput = document.createElement('input');
+        deadlineInput.type = 'text';
+        deadlineInput.className = 'kcard-input-deadline';
+        deadlineInput.placeholder = '締切（例: 毎日, 15時迄, 毎週金曜）';
+        deadlineInput.maxLength = 50;
+        deadlineInput.setAttribute('aria-label', '締切');
+        metaRow.appendChild(deadlineInput);
+        formCard.appendChild(metaRow);
+
+        const actionsRow = document.createElement('div');
+        actionsRow.className = 'kcard-form-actions';
+
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'btn-form-submit';
+        safeText(addBtn, '追加する');
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'btn-form-cancel';
+        safeText(cancelBtn, 'キャンセル');
+
+        actionsRow.appendChild(addBtn);
+        actionsRow.appendChild(cancelBtn);
+        formCard.appendChild(actionsRow);
+
+        const doSubmit = () => {
+          const titleVal = titleInput.value.trim();
+          if (!titleVal) {
+            titleInput.classList.add('is-invalid');
+            titleInput.focus();
+            return;
+          }
+          const deadlineVal = deadlineInput.value.trim();
+          addCustomItem(catId, titleVal, deadlineVal);
+        };
+
+        addBtn.addEventListener('click', doSubmit);
+        cancelBtn.addEventListener('click', () => {
+          formCard.remove();
+          renderEmptyStates();
+        });
+
+        titleInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            deadlineInput.focus();
+          } else if (e.key === 'Escape') {
+            formCard.remove();
+            renderEmptyStates();
+          }
+        });
+
+        deadlineInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            doSubmit();
+          } else if (e.key === 'Escape') {
+            formCard.remove();
+            renderEmptyStates();
+          }
+        });
+
+        const firstCard = body.querySelector('.kcard');
+        if (firstCard) {
+          body.insertBefore(formCard, firstCard);
+        } else {
+          const emptyEl = body.querySelector('.col-empty');
+          if (emptyEl) {
+            body.insertBefore(formCard, emptyEl);
+          } else {
+            body.appendChild(formCard);
+          }
+        }
+
+        titleInput.focus();
       }
 
       // ─────────────────────────────────────────────
@@ -897,6 +1712,15 @@
           safeText(clearBtn, 'クリア');
           clearBtn.addEventListener('click', onClearAll);
           header.appendChild(clearBtn);
+        } else {
+          const addBtn = document.createElement('button');
+          addBtn.className = 'btn-add-item';
+          addBtn.id = 'btn-add-' + id;
+          addBtn.setAttribute('aria-label', `${label}に項目を追加`);
+          addBtn.title = `${label}に項目を追加`;
+          safeText(addBtn, '＋');
+          addBtn.addEventListener('click', () => showAddCardForm(id));
+          header.appendChild(addBtn);
         }
 
         section.appendChild(header);
@@ -905,6 +1729,13 @@
         body.className = 'col-body';
         body.id = 'col-' + id + '-body';
         body.setAttribute('role', 'list');
+        body.dataset.colId = id;
+
+        // 並び替え用ドラッグ＆ドロップイベント
+        body.addEventListener('dragover', handleColDragOver);
+        body.addEventListener('dragleave', handleColDragLeave);
+        body.addEventListener('drop', handleColDrop);
+
         section.appendChild(body);
 
         return section;
@@ -934,7 +1765,7 @@
         root.appendChild(createColumn('done', '提出済み', true));
 
         // カードを振り分け
-        CHECKLIST_CONFIG.items.forEach(item => {
+        getAllItems().forEach(item => {
           const card = buildCard(item, false);
           if (checkedSet.has(item.id)) {
             document.getElementById('col-done-body').appendChild(card);
@@ -967,11 +1798,37 @@
         card.id = 'card-' + safeId;
         card.setAttribute('role', 'listitem');
         card.setAttribute('tabindex', '0');
-        card.setAttribute('aria-label', item.label + (isDone ? '（提出済み）' : '（未提出）'));
+        card.setAttribute('draggable', 'true');
+        card.dataset.itemId = item.id;
+        card.dataset.colId = isDone ? 'done' : item.category;
+        card.setAttribute('aria-label', item.label + (isDone ? '（提出済み）' : '（未提出）') + '。Altと矢印キーで並び替え可能');
 
         // Top row
         const topRow = document.createElement('div');
         topRow.className = 'kcard-top';
+
+        // Drag handle (グリップアイコン)
+        const dragHandle = document.createElement('span');
+        dragHandle.className = 'kcard-drag-handle';
+        dragHandle.setAttribute('aria-hidden', 'true');
+        dragHandle.title = 'ドラッグして並び替え（Alt + ↑/↓でも移動可能）';
+
+        const dragSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        dragSvg.setAttribute('viewBox', '0 0 10 16');
+        dragSvg.setAttribute('width', '10');
+        dragSvg.setAttribute('height', '16');
+
+        const coords = [[2, 3], [8, 3], [2, 8], [8, 8], [2, 13], [8, 13]];
+        coords.forEach(([cx, cy]) => {
+          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          circle.setAttribute('cx', String(cx));
+          circle.setAttribute('cy', String(cy));
+          circle.setAttribute('r', '1.5');
+          circle.setAttribute('fill', 'currentColor');
+          dragSvg.appendChild(circle);
+        });
+        dragHandle.appendChild(dragSvg);
+        topRow.appendChild(dragHandle);
 
         // Checkbox
         const cbWrap = document.createElement('div');
@@ -985,25 +1842,147 @@
         svgEl.appendChild(poly);
         cbWrap.appendChild(svgEl);
 
-        // Label
+        // Label (クリックでインライン編集)
         const labelEl = document.createElement('span');
         labelEl.className = 'kcard-label';
+        labelEl.title = 'クリックしてタスク名を編集';
         safeText(labelEl, item.label);
+
+        function startEditLabel() {
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.className = 'kcard-label-input';
+          input.value = item.label;
+          input.maxLength = 100;
+          input.setAttribute('aria-label', 'タスク名を編集');
+
+          let committed = false;
+          const finish = (save) => {
+            if (committed) return;
+            committed = true;
+            if (save) {
+              const val = input.value.trim();
+              if (val && val !== item.label) {
+                updateItemField(item.id, 'label', val);
+                item.label = val;
+                card.setAttribute('aria-label', val + (isDone ? '（提出済み）' : '（未提出）') + '。Altと矢印キーで並び替え可能');
+              }
+            }
+            safeText(labelEl, item.label);
+            if (input.parentNode === topRow) {
+              topRow.replaceChild(labelEl, input);
+            }
+          };
+
+          input.addEventListener('mousedown', e => e.stopPropagation());
+          input.addEventListener('click', e => e.stopPropagation());
+
+          input.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              finish(true);
+            } else if (e.key === 'Escape') {
+              e.preventDefault();
+              finish(false);
+            }
+          });
+
+          input.addEventListener('blur', () => finish(true));
+
+          topRow.replaceChild(input, labelEl);
+          input.focus();
+          input.select();
+        }
+
+        labelEl.addEventListener('click', e => {
+          e.stopPropagation();
+          startEditLabel();
+        });
 
         topRow.appendChild(cbWrap);
         topRow.appendChild(labelEl);
+
+        // すべてのタスク（デフォルト・カスタム問わず）に削除ボタンを付与
+        const delBtn = document.createElement('button');
+        delBtn.className = 'btn-card-delete';
+        delBtn.setAttribute('aria-label', `${item.label}を削除`);
+        delBtn.title = 'タスクを削除';
+        safeText(delBtn, '×');
+        delBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (window.confirm(`タスク「${item.label}」を削除しますか？`)) {
+            deleteItem(item.id);
+          }
+        });
+        topRow.appendChild(delBtn);
+
         card.appendChild(topRow);
 
         // Meta row
         const metaRow = document.createElement('div');
         metaRow.className = 'kcard-meta';
 
-        if (item.deadline) {
-          const deadlineBadge = document.createElement('span');
-          deadlineBadge.className = 'badge-deadline';
-          safeText(deadlineBadge, item.deadline);
-          metaRow.appendChild(deadlineBadge);
+        // Deadline Badge (クリックでインライン編集)
+        const deadlineBadge = document.createElement('span');
+        const hasDeadline = Boolean(item.deadline && item.deadline.trim());
+        deadlineBadge.className = 'badge-deadline' + (hasDeadline ? '' : ' is-empty');
+        deadlineBadge.title = 'クリックして締切を編集';
+        safeText(deadlineBadge, hasDeadline ? item.deadline : '+ 締切設定');
+
+        function startEditDeadline() {
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.className = 'badge-deadline-input';
+          input.value = item.deadline || '';
+          input.maxLength = 50;
+          input.placeholder = '例: 毎日, 15時迄';
+          input.setAttribute('aria-label', '締切を編集');
+
+          let committed = false;
+          const finish = (save) => {
+            if (committed) return;
+            committed = true;
+            if (save) {
+              const val = input.value.trim();
+              if (val !== (item.deadline || '')) {
+                updateItemField(item.id, 'deadline', val);
+                item.deadline = val;
+              }
+            }
+            const isFilled = Boolean(item.deadline && item.deadline.trim());
+            deadlineBadge.className = 'badge-deadline' + (isFilled ? '' : ' is-empty');
+            safeText(deadlineBadge, isFilled ? item.deadline : '+ 締切設定');
+            if (input.parentNode === metaRow) {
+              metaRow.replaceChild(deadlineBadge, input);
+            }
+          };
+
+          input.addEventListener('mousedown', e => e.stopPropagation());
+          input.addEventListener('click', e => e.stopPropagation());
+
+          input.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              finish(true);
+            } else if (e.key === 'Escape') {
+              e.preventDefault();
+              finish(false);
+            }
+          });
+
+          input.addEventListener('blur', () => finish(true));
+
+          metaRow.replaceChild(input, deadlineBadge);
+          input.focus();
+          input.select();
         }
+
+        deadlineBadge.addEventListener('click', e => {
+          e.stopPropagation();
+          startEditDeadline();
+        });
+
+        metaRow.appendChild(deadlineBadge);
 
         const catConfig = CHECKLIST_CONFIG.categories.find(c => c.id === item.category);
         if (catConfig) {
@@ -1031,15 +2010,54 @@
         memoWrap.appendChild(memoInput);
         card.appendChild(memoWrap);
 
-        // Events
-        card.addEventListener('click', () => toggleCard(item.id));
+        // 子要素のドラッグ誤発火防止
+        cbWrap.setAttribute('draggable', 'false');
+        memoInput.setAttribute('draggable', 'false');
+        delBtn.setAttribute('draggable', 'false');
+
+        cbWrap.addEventListener('mousedown', e => e.stopPropagation());
+        memoInput.addEventListener('mousedown', e => e.stopPropagation());
+        delBtn.addEventListener('mousedown', e => e.stopPropagation());
+
+        // ドラッグイベント
+        card.addEventListener('dragstart', function (e) {
+          isDraggingActive = true;
+          e.dataTransfer.setData('text/plain', item.id);
+          e.dataTransfer.effectAllowed = 'move';
+          this.classList.add('is-dragging');
+          startAutoScroll();
+        });
+
+        card.addEventListener('dragend', function () {
+          this.classList.remove('is-dragging');
+          stopAutoScroll();
+          setTimeout(() => {
+            isDraggingActive = false;
+          }, 60);
+          document.querySelectorAll('.col-body').forEach(b => b.classList.remove('drag-over'));
+          updateAndSaveOrder();
+        });
+
+        // クリックとキーボード操作
+        card.addEventListener('click', () => {
+          if (isDraggingActive) return;
+          toggleCard(item.id);
+        });
+
         memoInput.addEventListener('click', e => e.stopPropagation());
+
         card.addEventListener('keydown', e => {
           if (e.key === 'Enter' || e.key === ' ') {
+            if (e.target === card) {
+              e.preventDefault();
+              toggleCard(item.id);
+            }
+          } else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
             e.preventDefault();
-            toggleCard(item.id);
+            moveCardByStep(item.id, e.key === 'ArrowUp' ? -1 : 1);
           }
         });
+
         memoInput.addEventListener('change', () => saveMemo(item.id, memoInput.value));
         memoInput.addEventListener('blur', () => saveMemo(item.id, memoInput.value));
 
@@ -1056,7 +2074,7 @@
        * @param {string} itemId
        */
       function toggleCard(itemId) {
-        const item = CHECKLIST_CONFIG.items.find(it => it.id === itemId);
+        const item = getAllItems().find(it => it.id === itemId);
         if (!item) return;
 
         const nowDone = !checkedSet.has(itemId);
@@ -1121,14 +2139,15 @@
        * @param {HTMLElement} body
        */
       function insertCardInOrder(card, itemId, body) {
-        const allIds = CHECKLIST_CONFIG.items.map(it => it.id);
+        const allItems = getAllItems();
+        const allIds = allItems.map(it => it.id);
         const targetIdx = allIds.indexOf(itemId);
         const existing = body.querySelectorAll('.kcard');
 
         let inserted = false;
         for (const el of existing) {
           const elRawId = el.id.replace('card-', '');
-          const elItem = CHECKLIST_CONFIG.items.find(
+          const elItem = allItems.find(
             it => it.id.replace(/[^a-zA-Z0-9_-]/g, '') === elRawId
           );
           if (elItem && allIds.indexOf(elItem.id) > targetIdx) {
@@ -1194,6 +2213,36 @@
       }
 
       // ─────────────────────────────────────────────
+      // 初期値リセット（現在の定義状態へ完全復元）
+      // ─────────────────────────────────────────────
+
+      function onResetToDefault() {
+        if (!window.confirm('すべてのタスク、順序、編集内容を初期状態（デフォルト）に戻しますか？\nこの操作は取り消せません。')) {
+          return;
+        }
+
+        checkedSet.clear();
+        memoMap = Object.create(null);
+        customItems = [];
+        deletedItemIds.clear();
+        itemEditsMap = Object.create(null);
+        itemOrderList = [];
+
+        try {
+          localStorage.removeItem(LS_CHECKED);
+          localStorage.removeItem(LS_MEMO);
+          localStorage.removeItem(LS_CUSTOM_ITEMS);
+          localStorage.removeItem(LS_DELETED_ITEMS);
+          localStorage.removeItem(LS_EDITS);
+          localStorage.removeItem(LS_ORDER);
+        } catch (e) {
+          console.warn('[checklist] 初期値リセット時の localStorage 削除に失敗:', e.message);
+        }
+
+        buildBoard();
+      }
+
+      // ─────────────────────────────────────────────
       // 初期化
       // ─────────────────────────────────────────────
 
@@ -1229,7 +2278,12 @@
         loadState();
         buildBoard();
 
-// クリアボタンのイベントは createColumn 内で提出済み列生成時に設定
+        const resetBtn = document.getElementById('btn-reset');
+        if (resetBtn) {
+          resetBtn.addEventListener('click', onResetToDefault);
+        }
+
+        // クリアボタンのイベントは createColumn 内で提出済み列生成時に設定
       }
 
       if (document.readyState === 'loading') {
