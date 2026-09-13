@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ja">
 
 <head>
@@ -8,7 +8,7 @@
     content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'self';">
   <meta name="description" content="チェックリスト — 提出期限と状況を管理するツール">
   <meta name="referrer" content="no-referrer">
-  <title>チェックリスト</title>
+  <title>checklist</title>
   <style>
     /* ═══════════════════════════════════════════
        Design Tokens — Light / Business
@@ -111,40 +111,11 @@
       flex-shrink: 0;
     }
 
-    .header-logo {
-      width: 28px;
-      height: 28px;
-      border-radius: var(--radius-sm);
-      background: var(--accent-primary);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-
-    .header-logo svg {
-      width: 16px;
-      height: 16px;
-      stroke: #fff;
-      fill: none;
-      stroke-width: 2;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-
     .header-title {
       font-size: 1rem;
       font-weight: 700;
       color: var(--text-h);
       letter-spacing: -0.01em;
-    }
-
-    .header-subtitle {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      padding-left: 12px;
-      border-left: 1px solid var(--border-base);
-      margin-left: 4px;
     }
 
     .btn-clear {
@@ -429,6 +400,25 @@
 
     .col-done .col-dot {
       background: var(--accent-success);
+    }
+
+    /* 各タスクのカテゴリ（日次・週次・月次）色に連動 */
+    #col-daily .col-dot,
+    .col-daily .col-dot {
+      background: var(--pill-daily-fg);
+      box-shadow: 0 0 0 2px var(--pill-daily-bg);
+    }
+
+    #col-weekly .col-dot,
+    .col-weekly .col-dot {
+      background: var(--pill-weekly-fg);
+      box-shadow: 0 0 0 2px var(--pill-weekly-bg);
+    }
+
+    #col-monthly .col-dot,
+    .col-monthly .col-dot {
+      background: var(--pill-monthly-fg);
+      box-shadow: 0 0 0 2px var(--pill-monthly-bg);
     }
 
     .col-title {
@@ -835,10 +825,6 @@
         grid-template-columns: 1fr !important;
         padding: 16px;
       }
-
-      .header-subtitle {
-        display: none;
-      }
     }
 
     @media print {
@@ -873,7 +859,7 @@
     <div class="header-inner">
       <div class="header-left">
         <span class="header-dot" aria-hidden="true"></span>
-        <h1 class="header-title" id="app-title-heading">チェックリスト</h1>
+        <h1 class="header-title" id="app-title-heading">checklist</h1>
       </div>
       <button class="btn-reset" id="btn-reset" aria-label="初期状態にリセット" title="すべてのタスク・順序・編集内容を現在の初期状態に戻します">
         <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8"
@@ -913,7 +899,7 @@
     const CHECKLIST_CONFIG = {
 
       /** アプリのタイトル（ヘッダーに表示） */
-      appTitle: "チェックリスト",
+      appTitle: "checklist",
 
       /** フッターに表示する補足テキスト（不要なら空文字 "" にする） */
       footerText: "チェック状態はこのPCのブラウザに保存されます。クリア後は再入力してください。",
@@ -1067,25 +1053,53 @@
       const LS_ORDER = LS_PREFIX + 'order';
       const LS_EDITS = LS_PREFIX + 'edits';
 
-      /**
-       * カードが移動するまでのチェックマーク表示時間 (ms)
-       * この間は元の列でチェックマークが見える
-       */
+      /** カードが移動するまでのチェックマーク表示時間 (ms) */
       const CHECK_ANIM_MS = 300;
 
       // ─────────────────────────────────────────────
-      // ユーティリティ
+      // ユーティリティ & ストレージヘルパー
       // ─────────────────────────────────────────────
 
       /** XSS防止: textContent で安全にテキストを設定 */
       function safeText(el, text) {
-        el.textContent = String(text);
+        el.textContent = String(text ?? '');
       }
 
       /** 文字列を指定長に切り詰める */
       function truncate(str, max) {
         if (typeof str !== 'string') return '';
         return str.length > max ? str.slice(0, max) : str;
+      }
+
+      /** 安全な localStorage 読み込み */
+      function getStorageJson(key, fallback) {
+        try {
+          const raw = localStorage.getItem(key);
+          if (!raw) return fallback;
+          const parsed = JSON.parse(raw);
+          return parsed !== null && parsed !== undefined ? parsed : fallback;
+        } catch (e) {
+          console.warn(`[checklist] localStorage 読み込み失敗 (${key}):`, e.message);
+          return fallback;
+        }
+      }
+
+      /** 安全な localStorage 保存 */
+      function setStorageJson(key, val) {
+        try {
+          localStorage.setItem(key, JSON.stringify(val));
+        } catch (e) {
+          console.warn(`[checklist] localStorage 保存失敗 (${key}):`, e.message);
+        }
+      }
+
+      /** 安全な localStorage 削除 */
+      function removeStorageItem(key) {
+        try {
+          localStorage.removeItem(key);
+        } catch (e) {
+          console.warn(`[checklist] localStorage 削除失敗 (${key}):`, e.message);
+        }
       }
 
       // ─────────────────────────────────────────────
@@ -1124,17 +1138,17 @@
       // 状態管理
       // ─────────────────────────────────────────────
 
-      /** @type {Set<string>} */
+      /** @type {Set<string>} チェック済みアイテムID集合 */
       let checkedSet = new Set();
-      /** @type {Object<string,string>} */
+      /** @type {Object<string,string>} アイテムID別メモマップ */
       let memoMap = Object.create(null);
-      /** @type {Array<Object>} */
+      /** @type {Array<Object>} ユーザー追加カスタムタスク */
       let customItems = [];
-      /** @type {Set<string>} */
+      /** @type {Set<string>} 削除済みタスクID集合 */
       let deletedItemIds = new Set();
-      /** @type {Array<string>} ユーザーが並び替えたアイテムID順序リスト */
+      /** @type {Array<string>} 並び替え順序リスト */
       let itemOrderList = [];
-      /** @type {Object<string, {label?: string, deadline?: string}>} 編集済みタスク名・締切マップ */
+      /** @type {Object<string, {label?: string, deadline?: string}>} 編集済み差分マップ */
       let itemEditsMap = Object.create(null);
 
       function getAllItems() {
@@ -1165,113 +1179,79 @@
       }
 
       function loadState() {
-        try {
-          const raw = localStorage.getItem(LS_CHECKED);
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed)) checkedSet = new Set(parsed);
-          }
-        } catch (_) { checkedSet = new Set(); }
+        const rawChecked = getStorageJson(LS_CHECKED, []);
+        if (Array.isArray(rawChecked)) {
+          checkedSet = new Set(rawChecked.filter(id => typeof id === 'string'));
+        }
 
-        try {
-          const raw = localStorage.getItem(LS_MEMO);
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-              const cleanMap = Object.create(null);
-              for (const [k, v] of Object.entries(parsed)) {
-                if (typeof k === 'string' && typeof v === 'string') {
-                  cleanMap[k] = truncate(v, 200);
-                }
-              }
-              memoMap = cleanMap;
+        const rawMemo = getStorageJson(LS_MEMO, {});
+        if (rawMemo && typeof rawMemo === 'object' && !Array.isArray(rawMemo)) {
+          const cleanMap = Object.create(null);
+          for (const [k, v] of Object.entries(rawMemo)) {
+            if (typeof k === 'string' && typeof v === 'string') {
+              cleanMap[k] = truncate(v, 200);
             }
           }
-        } catch (_) { memoMap = Object.create(null); }
+          memoMap = cleanMap;
+        }
 
-        try {
-          const rawCustom = localStorage.getItem(LS_CUSTOM_ITEMS);
-          if (rawCustom) {
-            const parsed = JSON.parse(rawCustom);
-            if (Array.isArray(parsed)) {
-              customItems = parsed.filter(it =>
-                it && typeof it === 'object' &&
-                typeof it.id === 'string' &&
-                typeof it.label === 'string' &&
-                typeof it.category === 'string'
-              ).map(it => ({
-                id: truncate(it.id.replace(/[^a-zA-Z0-9_-]/g, ''), 64),
-                label: truncate(String(it.label), 100),
-                deadline: truncate(String(it.deadline || ''), 50),
-                category: truncate(String(it.category), 32),
-                note: truncate(String(it.note || ''), 200),
-                isCustom: true
-              }));
+        const rawCustom = getStorageJson(LS_CUSTOM_ITEMS, []);
+        if (Array.isArray(rawCustom)) {
+          customItems = rawCustom.filter(it =>
+            it && typeof it === 'object' &&
+            typeof it.id === 'string' &&
+            typeof it.label === 'string' &&
+            typeof it.category === 'string'
+          ).map(it => ({
+            id: truncate(it.id.replace(/[^a-zA-Z0-9_-]/g, ''), 64),
+            label: truncate(String(it.label), 100),
+            deadline: truncate(String(it.deadline || ''), 50),
+            category: truncate(String(it.category), 32),
+            note: truncate(String(it.note || ''), 200),
+            isCustom: true
+          }));
+        }
+
+        const rawDeleted = getStorageJson(LS_DELETED_ITEMS, []);
+        if (Array.isArray(rawDeleted)) {
+          deletedItemIds = new Set(rawDeleted.filter(id => typeof id === 'string'));
+        }
+
+        const rawOrder = getStorageJson(LS_ORDER, []);
+        if (Array.isArray(rawOrder)) {
+          itemOrderList = rawOrder.filter(id => typeof id === 'string');
+        }
+
+        const rawEdits = getStorageJson(LS_EDITS, {});
+        if (rawEdits && typeof rawEdits === 'object' && !Array.isArray(rawEdits)) {
+          const cleanEdits = Object.create(null);
+          for (const [k, v] of Object.entries(rawEdits)) {
+            if (typeof k === 'string' && v && typeof v === 'object') {
+              cleanEdits[k] = {
+                label: typeof v.label === 'string' ? truncate(v.label, 100) : undefined,
+                deadline: typeof v.deadline === 'string' ? truncate(v.deadline, 50) : undefined,
+              };
             }
           }
-        } catch (_) { customItems = []; }
-
-        try {
-          const rawDeleted = localStorage.getItem(LS_DELETED_ITEMS);
-          if (rawDeleted) {
-            const parsed = JSON.parse(rawDeleted);
-            if (Array.isArray(parsed)) deletedItemIds = new Set(parsed);
-          }
-        } catch (_) { deletedItemIds = new Set(); }
-
-        try {
-          const rawOrder = localStorage.getItem(LS_ORDER);
-          if (rawOrder) {
-            const parsed = JSON.parse(rawOrder);
-            if (Array.isArray(parsed)) {
-              itemOrderList = parsed.filter(id => typeof id === 'string');
-            }
-          }
-        } catch (_) { itemOrderList = []; }
-
-        try {
-          const rawEdits = localStorage.getItem(LS_EDITS);
-          if (rawEdits) {
-            const parsed = JSON.parse(rawEdits);
-            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-              const cleanEdits = Object.create(null);
-              for (const [k, v] of Object.entries(parsed)) {
-                if (typeof k === 'string' && v && typeof v === 'object') {
-                  cleanEdits[k] = {
-                    label: typeof v.label === 'string' ? truncate(v.label, 100) : undefined,
-                    deadline: typeof v.deadline === 'string' ? truncate(v.deadline, 50) : undefined,
-                  };
-                }
-              }
-              itemEditsMap = cleanEdits;
-            }
-          }
-        } catch (_) { itemEditsMap = Object.create(null); }
+          itemEditsMap = cleanEdits;
+        }
       }
 
       function saveChecked() {
-        try {
-          localStorage.setItem(LS_CHECKED, JSON.stringify([...checkedSet]));
-        } catch (e) {
-          console.warn('[checklist] localStorage 書き込み失敗:', e.message);
-        }
+        setStorageJson(LS_CHECKED, [...checkedSet]);
+      }
+
+      function saveMemoStorage() {
+        setStorageJson(LS_MEMO, memoMap);
       }
 
       function saveMemo(id, value) {
         memoMap[id] = value;
-        try {
-          localStorage.setItem(LS_MEMO, JSON.stringify(memoMap));
-        } catch (e) {
-          console.warn('[checklist] localStorage (memo) 書き込み失敗:', e.message);
-        }
+        saveMemoStorage();
       }
 
       function saveCustomItems() {
-        try {
-          localStorage.setItem(LS_CUSTOM_ITEMS, JSON.stringify(customItems));
-        } catch (e) {
-          console.warn('[checklist] localStorage (custom items) 書き込み失敗:', e.message);
-        }
+        setStorageJson(LS_CUSTOM_ITEMS, customItems);
       }
 
       function addCustomItem(category, label, deadline) {
@@ -1284,47 +1264,77 @@
           note: '',
           isCustom: true
         };
-        customItems.push(newItem);
+
+        // 既存アイテム一覧とそのID順序を取得
+        const currentItems = getAllItems();
+        const currentIds = currentItems.map(it => it.id);
+
+        // 各列で追加した項目を一番上に表示するため、挿入インデックスを特定
+        // 1. 同一カテゴリの未完了アイテムがあれば、その先頭アイテムの直前に挿入
+        let targetIndex = currentItems.findIndex(it => it.category === category && !checkedSet.has(it.id));
+
+        // 2. 未完了アイテムがなければ、同一カテゴリのアイテム（完了済み含む）の先頭の直前に挿入
+        if (targetIndex === -1) {
+          targetIndex = currentItems.findIndex(it => it.category === category);
+        }
+
+        // 3. カテゴリ内のアイテムが存在しない場合、カテゴリ定義の順序に準じて後続カテゴリの先頭を探す
+        if (targetIndex === -1) {
+          const cats = (typeof CHECKLIST_CONFIG !== 'undefined' && CHECKLIST_CONFIG.categories) || [];
+          const catIdx = cats.findIndex(c => c.id === category);
+          if (catIdx !== -1) {
+            for (let i = catIdx + 1; i < cats.length; i++) {
+              const nextCatId = cats[i].id;
+              const nextIdx = currentItems.findIndex(it => it.category === nextCatId);
+              if (nextIdx !== -1) {
+                targetIndex = nextIdx;
+                break;
+              }
+            }
+          }
+        }
+
+        if (targetIndex !== -1) {
+          currentIds.splice(targetIndex, 0, id);
+        } else {
+          currentIds.unshift(id);
+        }
+
+        // customItems 配列でも先頭に追加
+        customItems.unshift(newItem);
         saveCustomItems();
+
+        // 順序リストを更新して保存
+        itemOrderList = currentIds;
+        saveItemOrder();
+
         buildBoard();
       }
 
       function saveDeletedItems() {
-        try {
-          localStorage.setItem(LS_DELETED_ITEMS, JSON.stringify([...deletedItemIds]));
-        } catch (e) {
-          console.warn('[checklist] localStorage (deleted items) 書き込み失敗:', e.message);
-        }
+        setStorageJson(LS_DELETED_ITEMS, [...deletedItemIds]);
       }
 
       function saveItemOrder() {
-        try {
-          localStorage.setItem(LS_ORDER, JSON.stringify(itemOrderList));
-        } catch (e) {
-          console.warn('[checklist] localStorage (order) 書き込み失敗:', e.message);
-        }
+        setStorageJson(LS_ORDER, itemOrderList);
       }
 
       function saveItemEdits() {
-        try {
-          localStorage.setItem(LS_EDITS, JSON.stringify(itemEditsMap));
-        } catch (e) {
-          console.warn('[checklist] localStorage (edits) 書き込み失敗:', e.message);
-        }
+        setStorageJson(LS_EDITS, itemEditsMap);
       }
 
       /** タスク名または締切のインライン編集を永続化 */
       function updateItemField(itemId, field, value) {
         const cleanVal = truncate(value.trim(), field === 'label' ? 100 : 50);
 
-        // カスタムアイテム配列を更新
+        // カスタムアイテムの場合はオブジェクト本体を直接更新
         const cItem = customItems.find(it => it.id === itemId);
         if (cItem) {
           cItem[field] = cleanVal;
           saveCustomItems();
         }
 
-        // デフォルトアイテムも含めて編集マップに記録
+        // デフォルトアイテムも含め編集差分マップに記録
         if (!itemEditsMap[itemId]) {
           itemEditsMap[itemId] = {};
         }
@@ -1332,17 +1342,14 @@
         saveItemEdits();
       }
 
-      /** ボード上の現DOM要素の順序を収集して保存 */
+      /** ボード上の現DOM要素の順序を収集して保存 (O(N) 最適化) */
       function updateAndSaveOrder() {
         const cards = document.querySelectorAll('.kanban-root .kcard:not(.kcard-form)');
         const newOrder = [];
         cards.forEach(card => {
-          const rawId = card.id.replace('card-', '');
-          const it = getAllItems().find(
-            item => item.id.replace(/[^a-zA-Z0-9_-]/g, '') === rawId
-          );
-          if (it && !newOrder.includes(it.id)) {
-            newOrder.push(it.id);
+          const itemId = card.dataset.itemId;
+          if (itemId && !newOrder.includes(itemId)) {
+            newOrder.push(itemId);
           }
         });
 
@@ -1368,11 +1375,7 @@
         if (!body) return;
 
         const cards = [...body.querySelectorAll('.kcard:not(.kcard-form)')];
-        const cardIds = cards.map(c => {
-          const raw = c.id.replace('card-', '');
-          const match = getAllItems().find(it => it.id.replace(/[^a-zA-Z0-9_-]/g, '') === raw);
-          return match ? match.id : null;
-        }).filter(Boolean);
+        const cardIds = cards.map(c => c.dataset.itemId).filter(Boolean);
 
         const curIdx = cardIds.indexOf(itemId);
         if (curIdx === -1) return;
@@ -1409,11 +1412,9 @@
         const maxSpeed = 22; // 最大スクロール速度 (px/frame)
 
         if (clientY < topThreshold) {
-          // 上端に近いほど速く上スクロール
           const ratio = (topThreshold - Math.max(0, clientY)) / topThreshold;
           autoScrollVelocity = -Math.max(4, Math.round(ratio * maxSpeed));
         } else if (clientY > bottomThreshold) {
-          // 下端に近いほど速く下スクロール
           const ratio = (clientY - bottomThreshold) / 100;
           autoScrollVelocity = Math.max(4, Math.round(Math.min(1, ratio) * maxSpeed));
         } else {
@@ -1432,7 +1433,6 @@
         if (autoScrollVelocity !== 0) {
           window.scrollBy({ top: autoScrollVelocity, left: 0, behavior: 'auto' });
 
-          // スクロール中もマウス直下の要素を検知してカード挿入位置を継続更新
           const draggingCard = document.querySelector('.kcard.is-dragging');
           if (draggingCard && lastClientX !== null && lastClientY !== null) {
             const elemBelow = document.elementFromPoint(lastClientX, lastClientY);
@@ -1521,7 +1521,6 @@
         }, { offset: Number.NEGATIVE_INFINITY }).element;
       }
 
-      // ウィンドウ全体でドラッグ位置と終了イベントを監視
       window.addEventListener('dragover', e => {
         if (!isDraggingActive) return;
         lastClientX = e.clientX;
@@ -1542,16 +1541,78 @@
         customItems = customItems.filter(it => it.id !== itemId);
         saveCustomItems();
 
-        // 削除済みIDセットに記録（デフォルト項目の非表示永続化）
+        // 削除済みIDセットに記録
         deletedItemIds.add(itemId);
         saveDeletedItems();
 
         // チェック状態・メモの削除
         checkedSet.delete(itemId);
-        delete memoMap[itemId];
         saveChecked();
-        saveMemo(itemId, '');
+
+        delete memoMap[itemId];
+        saveMemoStorage(); // 空文字を再代入せず、安全に保存
+
+        delete itemEditsMap[itemId];
+        saveItemEdits();
+
+        itemOrderList = itemOrderList.filter(id => id !== itemId);
+        saveItemOrder();
+
         buildBoard();
+      }
+
+      // ─────────────────────────────────────────────
+      // 共通インライン編集コンポーネント
+      // ─────────────────────────────────────────────
+
+      /**
+       * 要素をクリックした際にインライン編集入力欄を起動する共通関数
+       */
+      function setupInlineEditor({ triggerEl, containerEl, getValue, onSave, onRender, maxLength, placeholder, ariaLabel }) {
+        triggerEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.className = triggerEl.className + '-input';
+          input.value = getValue();
+          input.maxLength = maxLength;
+          if (placeholder) input.placeholder = placeholder;
+          input.setAttribute('aria-label', ariaLabel);
+
+          let committed = false;
+          const finish = (save) => {
+            if (committed) return;
+            committed = true;
+            if (save) {
+              const val = input.value.trim();
+              onSave(val);
+            }
+            onRender(triggerEl);
+            if (input.parentNode === containerEl) {
+              containerEl.replaceChild(triggerEl, input);
+            }
+          };
+
+          input.addEventListener('mousedown', ev => ev.stopPropagation());
+          input.addEventListener('click', ev => ev.stopPropagation());
+
+          input.addEventListener('keydown', ev => {
+            if (ev.key === 'Enter') {
+              ev.preventDefault();
+              finish(true);
+            } else if (ev.key === 'Escape') {
+              ev.preventDefault();
+              finish(false);
+            }
+          });
+
+          input.addEventListener('blur', () => finish(true));
+
+          containerEl.replaceChild(input, triggerEl);
+          input.focus();
+          input.select();
+        });
       }
 
       function showAddCardForm(catId) {
@@ -1683,7 +1744,7 @@
        */
       function createColumn(id, label, isDone) {
         const section = document.createElement('section');
-        section.className = 'kanban-col' + (isDone ? ' col-done' : '');
+        section.className = 'kanban-col col-' + truncate(id, 32) + (isDone ? ' col-done' : '');
         section.id = 'col-' + id;
         section.setAttribute('aria-label', label);
 
@@ -1709,7 +1770,8 @@
           const clearBtn = document.createElement('button');
           clearBtn.className = 'btn-clear';
           clearBtn.id = 'btn-clear';
-          clearBtn.setAttribute('aria-label', 'クリア');
+          clearBtn.setAttribute('aria-label', '提出済みタスクをクリア');
+          clearBtn.title = '提出済みのすべてのタスクを未提出に戻します';
           safeText(clearBtn, 'クリア');
           clearBtn.addEventListener('click', onClearAll);
           header.appendChild(clearBtn);
@@ -1763,7 +1825,7 @@
         });
 
         // 提出済み列
-        root.appendChild(createColumn('done', '提出済み', true));
+        root.appendChild(createColumn('done', '完了済みタスク', true));
 
         // カードを振り分け
         getAllItems().forEach(item => {
@@ -1772,7 +1834,6 @@
             document.getElementById('col-done-body').appendChild(card);
           } else {
             const colBody = document.getElementById('col-' + item.category + '-body');
-            // 対応する列がなければ最初のカテゴリ列にフォールバック
             const target = colBody || document.getElementById('col-' + cats[0].id + '-body');
             if (target) target.appendChild(card);
           }
@@ -1849,61 +1910,27 @@
         labelEl.title = 'クリックしてタスク名を編集';
         safeText(labelEl, item.label);
 
-        function startEditLabel() {
-          const input = document.createElement('input');
-          input.type = 'text';
-          input.className = 'kcard-label-input';
-          input.value = item.label;
-          input.maxLength = 100;
-          input.setAttribute('aria-label', 'タスク名を編集');
-
-          let committed = false;
-          const finish = (save) => {
-            if (committed) return;
-            committed = true;
-            if (save) {
-              const val = input.value.trim();
-              if (val && val !== item.label) {
-                updateItemField(item.id, 'label', val);
-                item.label = val;
-                card.setAttribute('aria-label', val + (isDone ? '（提出済み）' : '（未提出）') + '。Altと矢印キーで並び替え可能');
-              }
+        setupInlineEditor({
+          triggerEl: labelEl,
+          containerEl: topRow,
+          getValue: () => item.label,
+          maxLength: 100,
+          placeholder: 'タスク名を入力...',
+          ariaLabel: 'タスク名を編集',
+          onSave: (val) => {
+            if (val && val !== item.label) {
+              updateItemField(item.id, 'label', val);
+              item.label = val;
+              card.setAttribute('aria-label', val + (isDone ? '（提出済み）' : '（未提出）') + '。Altと矢印キーで並び替え可能');
             }
-            safeText(labelEl, item.label);
-            if (input.parentNode === topRow) {
-              topRow.replaceChild(labelEl, input);
-            }
-          };
-
-          input.addEventListener('mousedown', e => e.stopPropagation());
-          input.addEventListener('click', e => e.stopPropagation());
-
-          input.addEventListener('keydown', e => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              finish(true);
-            } else if (e.key === 'Escape') {
-              e.preventDefault();
-              finish(false);
-            }
-          });
-
-          input.addEventListener('blur', () => finish(true));
-
-          topRow.replaceChild(input, labelEl);
-          input.focus();
-          input.select();
-        }
-
-        labelEl.addEventListener('click', e => {
-          e.stopPropagation();
-          startEditLabel();
+          },
+          onRender: (el) => safeText(el, item.label)
         });
 
         topRow.appendChild(cbWrap);
         topRow.appendChild(labelEl);
 
-        // すべてのタスク（デフォルト・カスタム問わず）に削除ボタンを付与
+        // すべてのタスクに削除ボタンを付与
         const delBtn = document.createElement('button');
         delBtn.className = 'btn-card-delete';
         delBtn.setAttribute('aria-label', `${item.label}を削除`);
@@ -1925,62 +1952,28 @@
 
         // Deadline Badge (クリックでインライン編集)
         const deadlineBadge = document.createElement('span');
-        const hasDeadline = Boolean(item.deadline && item.deadline.trim());
-        deadlineBadge.className = 'badge-deadline' + (hasDeadline ? '' : ' is-empty');
+        const updateDeadlineBadgeClass = (el, val) => {
+          const hasVal = Boolean(val && val.trim());
+          el.className = 'badge-deadline' + (hasVal ? '' : ' is-empty');
+          safeText(el, hasVal ? val : '+ 締切設定');
+        };
+        updateDeadlineBadgeClass(deadlineBadge, item.deadline);
         deadlineBadge.title = 'クリックして締切を編集';
-        safeText(deadlineBadge, hasDeadline ? item.deadline : '+ 締切設定');
 
-        function startEditDeadline() {
-          const input = document.createElement('input');
-          input.type = 'text';
-          input.className = 'badge-deadline-input';
-          input.value = item.deadline || '';
-          input.maxLength = 50;
-          input.placeholder = '例: 毎日, 15時迄';
-          input.setAttribute('aria-label', '締切を編集');
-
-          let committed = false;
-          const finish = (save) => {
-            if (committed) return;
-            committed = true;
-            if (save) {
-              const val = input.value.trim();
-              if (val !== (item.deadline || '')) {
-                updateItemField(item.id, 'deadline', val);
-                item.deadline = val;
-              }
+        setupInlineEditor({
+          triggerEl: deadlineBadge,
+          containerEl: metaRow,
+          getValue: () => item.deadline || '',
+          maxLength: 50,
+          placeholder: '例: 毎日, 15時迄',
+          ariaLabel: '締切を編集',
+          onSave: (val) => {
+            if (val !== (item.deadline || '')) {
+              updateItemField(item.id, 'deadline', val);
+              item.deadline = val;
             }
-            const isFilled = Boolean(item.deadline && item.deadline.trim());
-            deadlineBadge.className = 'badge-deadline' + (isFilled ? '' : ' is-empty');
-            safeText(deadlineBadge, isFilled ? item.deadline : '+ 締切設定');
-            if (input.parentNode === metaRow) {
-              metaRow.replaceChild(deadlineBadge, input);
-            }
-          };
-
-          input.addEventListener('mousedown', e => e.stopPropagation());
-          input.addEventListener('click', e => e.stopPropagation());
-
-          input.addEventListener('keydown', e => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              finish(true);
-            } else if (e.key === 'Escape') {
-              e.preventDefault();
-              finish(false);
-            }
-          });
-
-          input.addEventListener('blur', () => finish(true));
-
-          metaRow.replaceChild(input, deadlineBadge);
-          input.focus();
-          input.select();
-        }
-
-        deadlineBadge.addEventListener('click', e => {
-          e.stopPropagation();
-          startEditDeadline();
+          },
+          onRender: (el) => updateDeadlineBadgeClass(el, item.deadline)
         });
 
         metaRow.appendChild(deadlineBadge);
@@ -2071,7 +2064,6 @@
 
       /**
        * チェック状態を切り替える。
-       * チェック時は CHECK_ANIM_MS ms だけ元の列でチェックマークを表示してから移動する。
        * @param {string} itemId
        */
       function toggleCard(itemId) {
@@ -2087,10 +2079,8 @@
           checkedSet.add(itemId);
           saveChecked();
 
-          // 一瞬チェックマークを見せる
           if (existing) {
             existing.classList.add('is-checking');
-            // クリック連打を防ぐ
             existing.style.pointerEvents = 'none';
           }
 
@@ -2134,7 +2124,7 @@
       }
 
       /**
-       * config の順序を維持してカードを挿入する
+       * configおよび保存順序を維持してカードを挿入する (O(N) 最適化)
        * @param {HTMLElement} card
        * @param {string} itemId
        * @param {HTMLElement} body
@@ -2147,11 +2137,8 @@
 
         let inserted = false;
         for (const el of existing) {
-          const elRawId = el.id.replace('card-', '');
-          const elItem = allItems.find(
-            it => it.id.replace(/[^a-zA-Z0-9_-]/g, '') === elRawId
-          );
-          if (elItem && allIds.indexOf(elItem.id) > targetIdx) {
+          const elId = el.dataset.itemId;
+          if (elId && allIds.indexOf(elId) > targetIdx) {
             body.insertBefore(card, el);
             inserted = true;
             break;
@@ -2161,55 +2148,46 @@
       }
 
       // ─────────────────────────────────────────────
-      // エンプティステート
+      // エンプティステート共通処理
       // ─────────────────────────────────────────────
+
+      function setColumnEmptyState(body, message) {
+        const old = body.querySelector('.col-empty');
+        if (old) old.remove();
+        if (!body.querySelector('.kcard')) {
+          const div = document.createElement('div');
+          div.className = 'col-empty';
+          const span = document.createElement('span');
+          safeText(span, message);
+          div.appendChild(span);
+          body.appendChild(div);
+        }
+      }
 
       function renderEmptyStates() {
         // カテゴリ列
         CHECKLIST_CONFIG.categories.forEach(cat => {
           const body = document.getElementById('col-' + cat.id + '-body');
-          if (!body) return;
-          const old = body.querySelector('.col-empty');
-          if (old) old.remove();
-          if (!body.querySelector('.kcard')) {
-            const div = document.createElement('div');
-            div.className = 'col-empty';
-            const span = document.createElement('span');
-            safeText(span, 'すべて提出済みです');
-            div.appendChild(span);
-            body.appendChild(div);
+          if (body) {
+            setColumnEmptyState(body, 'すべて完了');
           }
         });
 
         // 提出済み列
         const doneBody = document.getElementById('col-done-body');
         if (doneBody) {
-          const old = doneBody.querySelector('.col-empty');
-          if (old) old.remove();
-          if (!doneBody.querySelector('.kcard')) {
-            const div = document.createElement('div');
-            div.className = 'col-empty';
-            const span = document.createElement('span');
-            safeText(span, '提出済みの書類はありません');
-            div.appendChild(span);
-            doneBody.appendChild(div);
-          }
+          setColumnEmptyState(doneBody, '完了済みのタスクはありません');
         }
       }
 
       // ─────────────────────────────────────────────
-      // クリア
+      // 提出済みクリア（チェック状態のみ解除し未提出に戻す）
       // ─────────────────────────────────────────────
 
       function onClearAll() {
+        if (checkedSet.size === 0) return;
         checkedSet.clear();
-        memoMap = Object.create(null);
-        try {
-          localStorage.removeItem(LS_CHECKED);
-          localStorage.removeItem(LS_MEMO);
-        } catch (e) {
-          console.warn('[checklist] リセット時の localStorage 削除に失敗:', e.message);
-        }
+        saveChecked();
         buildBoard();
       }
 
@@ -2229,16 +2207,12 @@
         itemEditsMap = Object.create(null);
         itemOrderList = [];
 
-        try {
-          localStorage.removeItem(LS_CHECKED);
-          localStorage.removeItem(LS_MEMO);
-          localStorage.removeItem(LS_CUSTOM_ITEMS);
-          localStorage.removeItem(LS_DELETED_ITEMS);
-          localStorage.removeItem(LS_EDITS);
-          localStorage.removeItem(LS_ORDER);
-        } catch (e) {
-          console.warn('[checklist] 初期値リセット時の localStorage 削除に失敗:', e.message);
-        }
+        removeStorageItem(LS_CHECKED);
+        removeStorageItem(LS_MEMO);
+        removeStorageItem(LS_CUSTOM_ITEMS);
+        removeStorageItem(LS_DELETED_ITEMS);
+        removeStorageItem(LS_EDITS);
+        removeStorageItem(LS_ORDER);
 
         buildBoard();
       }
@@ -2266,10 +2240,9 @@
           return;
         }
 
-        const titleText = truncate(String(CHECKLIST_CONFIG.appTitle || '提出物チェックリスト'), 80);
+        const titleText = truncate(String(CHECKLIST_CONFIG.appTitle || 'checklist'), 80);
         document.title = titleText;
         safeText(document.getElementById('app-title-heading'), titleText);
-        // header-subtitle は非表示（不要のため削除）
 
         const footerText = truncate(String(CHECKLIST_CONFIG.footerText || ''), 300);
         if (footerText) {
@@ -2283,8 +2256,6 @@
         if (resetBtn) {
           resetBtn.addEventListener('click', onResetToDefault);
         }
-
-        // クリアボタンのイベントは createColumn 内で提出済み列生成時に設定
       }
 
       if (document.readyState === 'loading') {

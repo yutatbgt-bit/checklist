@@ -63,7 +63,7 @@
 
 ## 🚀 使い方
 
-1. 本リポジトリの [チェックリスト.html](チェックリスト.html) をダウンロードまたはクローンします。
+1. 本リポジトリの [checklist.html](checklist.html) をダウンロードまたはクローンします。
 2. お使いの Web ブラウザ（Google Chrome、Microsoft Edge、Firefox 等）で直接ダブルクリックして開くだけで使用可能です。
    - Web サーバーの起動やインストール作業は一切不要です。
 
@@ -73,7 +73,7 @@
 
 ```text
 checklist/
-├── チェックリスト.html   # アプリケーション本体（HTML/CSS/JS一体型）
+├── checklist.html   # アプリケーション本体（HTML/CSS/JS一体型）
 └── README.md             # ドキュメント（本ファイル）
 ```
 
