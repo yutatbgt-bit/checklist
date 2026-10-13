@@ -1,2271 +1,2271 @@
-﻿<!DOCTYPE html>
-<html lang="ja">
-
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'self';">
-  <meta name="description" content="チェックリスト — 提出期限と状況を管理するツール">
-  <meta name="referrer" content="no-referrer">
-  <title>checklist</title>
-  <style>
-    /* ═══════════════════════════════════════════
-       Design Tokens — Light / Business
-    ═══════════════════════════════════════════ */
-    :root {
-      --bg-page: #f1f4f8;
-      --bg-header: #ffffff;
-      --bg-card: #ffffff;
-      --bg-col-base: #f8fafc;
-      --bg-col-done: #f0fdf4;
-      --border-base: #e2e8f0;
-      --border-card: #e9edf2;
-      --border-done: #bbf7d0;
-
-      --accent-primary: #2563eb;
-      --accent-success: #16a34a;
-      --accent-danger: #dc2626;
-      --accent-badge: #d97706;
-
-      --text-h: #0f172a;
-      --text-body: #334155;
-      --text-sub: #64748b;
-      --text-muted: #94a3b8;
-
-      --pill-daily-bg: #fef3c7;
-      --pill-daily-fg: #92400e;
-      --pill-monthly-bg: #eff6ff;
-      --pill-monthly-fg: #1d4ed8;
-      --pill-weekly-bg: #faf5ff;
-      --pill-weekly-fg: #7c3aed;
-
-      --radius-sm: 4px;
-      --radius-md: 8px;
-      --radius-lg: 12px;
-
-      --shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.04);
-
-      --font: 'Segoe UI', 'Yu Gothic UI', 'Meiryo UI', system-ui, sans-serif;
-      --tr: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    /* ═══════════════════════════════════════════
-       Reset
-    ═══════════════════════════════════════════ */
-    *,
-    *::before,
-    *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    html {
-      scroll-behavior: smooth;
-    }
-
-    body {
-      font-family: var(--font);
-      background: var(--bg-page);
-      color: var(--text-body);
-      min-height: 100vh;
-    }
-
-    /* ═══════════════════════════════════════════
-       Header
-    ═══════════════════════════════════════════ */
-    .app-header {
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      background: var(--bg-header);
-      border-bottom: 1px solid var(--border-base);
-      box-shadow: var(--shadow-xs);
-    }
-
-    .header-inner {
-      max-width: 1600px;
-      margin: 0 auto;
-      padding: 0 28px;
-      height: 58px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-    }
-
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 9px;
-    }
-
-    .header-dot {
-      width: 9px;
-      height: 9px;
-      border-radius: 50%;
-      background: #eab308;
-      box-shadow: 0 0 0 2.5px rgba(234, 179, 8, 0.25);
-      flex-shrink: 0;
-    }
-
-    .header-title {
-      font-size: 1rem;
-      font-weight: 700;
-      color: var(--text-h);
-      letter-spacing: -0.01em;
-    }
-
-    .btn-clear {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 3px 10px;
-      border-radius: var(--radius-sm);
-      font-size: 0.74rem;
-      font-weight: 600;
-      font-family: var(--font);
-      cursor: pointer;
-      border: 1px solid #fca5a5;
-      background: #fff;
-      color: var(--accent-danger);
-      transition: all var(--tr);
-      white-space: nowrap;
-    }
-
-    .btn-clear:hover {
-      background: #fef2f2;
-      border-color: var(--accent-danger);
-      box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08);
-    }
-
-    .btn-clear:active {
-      transform: scale(0.97);
-    }
-
-    /* ─── Header Reset Button ─── */
-    .btn-reset {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 5px 12px;
-      border-radius: var(--radius-sm);
-      font-size: 0.76rem;
-      font-weight: 600;
-      font-family: var(--font);
-      cursor: pointer;
-      border: 1px solid var(--border-base);
-      background: #ffffff;
-      color: var(--text-sub);
-      transition: all var(--tr);
-      white-space: nowrap;
-    }
-
-    .btn-reset:hover {
-      background: #f8fafc;
-      border-color: #cbd5e1;
-      color: var(--text-h);
-      box-shadow: var(--shadow-xs);
-      transform: translateY(-0.5px);
-    }
-
-    .btn-reset:active {
-      transform: scale(0.97);
-    }
-
-    /* ═══════════════════════════════════════════
-       Kanban Layout — 3列 (動的生成)
-    ═══════════════════════════════════════════ */
-    .kanban-root {
-      max-width: 1600px;
-      margin: 0 auto;
-      padding: 28px 28px 60px;
-      display: grid;
-      /* JS で grid-template-columns を動的設定 (初期値4列) */
-      grid-template-columns: repeat(4, 1fr);
-      gap: 20px;
-      align-items: start;
-    }
-
-    /* ─── Add Item Button in Column Header ─── */
-    .btn-add-item {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 24px;
-      height: 24px;
-      border-radius: var(--radius-sm);
-      font-size: 0.95rem;
-      font-weight: 700;
-      line-height: 1;
-      cursor: pointer;
-      border: 1px solid var(--border-base);
-      background: #ffffff;
-      color: var(--text-sub);
-      transition: all var(--tr);
-    }
-
-    .btn-add-item:hover {
-      background: #eff6ff;
-      border-color: var(--accent-primary);
-      color: var(--accent-primary);
-      box-shadow: 0 1px 4px rgba(37, 99, 235, 0.15);
-    }
-
-    .btn-add-item:active {
-      transform: scale(0.94);
-    }
-
-    /* ─── Delete Button for Cards (Hover Display) ─── */
-    .btn-card-delete {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      border: none;
-      background: transparent;
-      color: var(--text-muted);
-      font-size: 1rem;
-      font-weight: 700;
-      line-height: 1;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      transition: all var(--tr);
-      opacity: 0;
-      visibility: hidden;
-      margin-left: 6px;
-      flex-shrink: 0;
-    }
-
-    .kcard:hover .btn-card-delete,
-    .btn-card-delete:focus-visible {
-      opacity: 0.6;
-      visibility: visible;
-    }
-
-    .btn-card-delete:hover {
-      background: #fee2e2;
-      color: var(--accent-danger);
-      opacity: 1;
-      transform: scale(1.15);
-    }
-
-    /* ─── Inline Card Creation Form ─── */
-    .kcard-form {
-      border: 1.5px dashed var(--accent-primary) !important;
-      background: #ffffff !important;
-      cursor: default !important;
-      box-shadow: 0 3px 10px rgba(37, 99, 235, 0.08) !important;
-      transform: none !important;
-    }
-
-    .kcard-checkbox.is-dummy {
-      border-style: dashed;
-      cursor: default;
-    }
-
-    .kcard-input-title {
-      flex: 1;
-      border: 1px solid var(--border-base);
-      border-radius: var(--radius-sm);
-      padding: 5px 8px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      font-family: var(--font);
-      color: var(--text-h);
-      outline: none;
-      transition: border-color var(--tr), box-shadow var(--tr);
-    }
-
-    .kcard-input-title:focus {
-      border-color: var(--accent-primary);
-      box-shadow: 0 0 0 2.5px rgba(37, 99, 235, 0.12);
-    }
-
-    .kcard-input-title.is-invalid {
-      border-color: var(--accent-danger);
-      box-shadow: 0 0 0 2.5px rgba(220, 38, 38, 0.12);
-    }
-
-    .kcard-form-row {
-      margin-top: 8px;
-      padding-left: 28px;
-    }
-
-    .kcard-input-deadline {
-      width: 100%;
-      border: 1px solid var(--border-base);
-      border-radius: var(--radius-sm);
-      padding: 4px 8px;
-      font-size: 0.74rem;
-      font-family: var(--font);
-      color: var(--text-body);
-      outline: none;
-      transition: border-color var(--tr), box-shadow var(--tr);
-    }
-
-    .kcard-input-deadline:focus {
-      border-color: var(--accent-primary);
-      box-shadow: 0 0 0 2.5px rgba(37, 99, 235, 0.12);
-    }
-
-    .kcard-form-actions {
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 8px;
-      margin-top: 10px;
-      padding-left: 28px;
-    }
-
-    .btn-form-submit {
-      padding: 4px 12px;
-      border-radius: var(--radius-sm);
-      font-size: 0.74rem;
-      font-weight: 600;
-      font-family: var(--font);
-      background: var(--accent-primary);
-      color: #ffffff;
-      border: none;
-      cursor: pointer;
-      transition: all var(--tr);
-    }
-
-    .btn-form-submit:hover {
-      background: #1d4ed8;
-      box-shadow: 0 2px 5px rgba(37, 99, 235, 0.25);
-    }
-
-    .btn-form-cancel {
-      padding: 4px 10px;
-      border-radius: var(--radius-sm);
-      font-size: 0.74rem;
-      font-weight: 500;
-      font-family: var(--font);
-      background: transparent;
-      color: var(--text-sub);
-      border: 1px solid var(--border-base);
-      cursor: pointer;
-      transition: all var(--tr);
-    }
-
-    .btn-form-cancel:hover {
-      background: #f1f5f9;
-      color: var(--text-h);
-    }
-
-    /* ─── Column ─── */
-    .kanban-col {
-      background: var(--bg-col-base);
-      border: 1px solid var(--border-base);
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-    }
-
-    .kanban-col.col-done {
-      background: var(--bg-col-done);
-      border-color: var(--border-done);
-    }
-
-    .col-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 14px 18px;
-      border-bottom: 1px solid var(--border-base);
-      background: rgba(255, 255, 255, 0.6);
-    }
-
-    .col-done .col-header {
-      border-bottom-color: var(--border-done);
-      background: rgba(240, 253, 244, 0.8);
-    }
-
-    .col-header-left {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .col-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--accent-badge);
-      flex-shrink: 0;
-    }
-
-    .col-done .col-dot {
-      background: var(--accent-success);
-    }
-
-    /* 各タスクのカテゴリ（日次・週次・月次）色に連動 */
-    #col-daily .col-dot,
-    .col-daily .col-dot {
-      background: var(--pill-daily-fg);
-      box-shadow: 0 0 0 2px var(--pill-daily-bg);
-    }
-
-    #col-weekly .col-dot,
-    .col-weekly .col-dot {
-      background: var(--pill-weekly-fg);
-      box-shadow: 0 0 0 2px var(--pill-weekly-bg);
-    }
-
-    #col-monthly .col-dot,
-    .col-monthly .col-dot {
-      background: var(--pill-monthly-fg);
-      box-shadow: 0 0 0 2px var(--pill-monthly-bg);
-    }
-
-    .col-title {
-      font-size: 0.82rem;
-      font-weight: 700;
-      color: var(--text-body);
-      letter-spacing: 0.03em;
-      text-transform: uppercase;
-    }
-
-    .col-body {
-      padding: 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      min-height: 120px;
-    }
-
-    /* Empty state */
-    .col-empty {
-      text-align: center;
-      padding: 28px 16px;
-      color: var(--text-muted);
-      font-size: 0.8rem;
-    }
-
-    /* ─── Drag & Drop ─── */
-    .kcard.is-dragging {
-      opacity: 0.38 !important;
-      transform: scale(0.98) !important;
-      border: 1.5px dashed var(--accent-primary) !important;
-      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.15) !important;
-      cursor: grabbing !important;
-    }
-
-    .kcard-drag-handle {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 12px;
-      height: 18px;
-      color: var(--text-muted);
-      cursor: grab;
-      opacity: 0.35;
-      flex-shrink: 0;
-      transition: opacity var(--tr), color var(--tr);
-      margin-right: 2px;
-    }
-
-    .kcard:hover .kcard-drag-handle {
-      opacity: 0.85;
-      color: var(--accent-primary);
-    }
-
-    .col-body.drag-over {
-      background: rgba(37, 99, 235, 0.035);
-      border-radius: var(--radius-md);
-      outline: 1.5px dashed rgba(37, 99, 235, 0.3);
-      outline-offset: -2px;
-    }
-
-    /* ═══════════════════════════════════════════
-       Kanban Card
-    ═══════════════════════════════════════════ */
-    .kcard {
-      background: var(--bg-card);
-      border: 1px solid var(--border-card);
-      border-radius: var(--radius-md);
-      padding: 14px 14px 12px;
-      box-shadow: var(--shadow-xs);
-      cursor: pointer;
-      transition: box-shadow var(--tr), transform var(--tr), border-color var(--tr);
-      user-select: none;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .kcard::before {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 3px;
-      border-radius: 3px 0 0 3px;
-      background: var(--accent-primary);
-      opacity: 0;
-      transition: opacity var(--tr);
-    }
-
-    .kcard:hover {
-      box-shadow: var(--shadow-sm);
-      border-color: #cbd5e1;
-      transform: translateY(-1px);
-    }
-
-    .kcard:hover::before {
-      opacity: 1;
-    }
-
-    .kcard:active {
-      transform: translateY(0);
-    }
-
-    /* ─── チェック中の一瞬状態（移動前アニメ） ─── */
-    .kcard.is-checking .kcard-checkbox {
-      background: var(--accent-success);
-      border-color: var(--accent-success);
-      box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.2);
-    }
-
-    .kcard.is-checking .kcard-checkbox svg {
-      opacity: 1;
-      transform: scale(1.1);
-    }
-
-    /* Done state */
-    .kcard.is-done {
-      border-color: #bbf7d0;
-      background: #f0fdf4;
-    }
-
-    .kcard.is-done::before {
-      background: var(--accent-success);
-      opacity: 1;
-    }
-
-    /* Moving animation */
-    @keyframes cardAppear {
-      from {
-        opacity: 0;
-        transform: translateY(8px) scale(0.97);
-      }
-
-      to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-      }
-    }
-
-    .kcard.entering {
-      animation: cardAppear 0.25s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
-    }
-
-    /* ─── Card top row ─── */
-    .kcard-top {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-    }
-
-    /* Checkbox */
-    .kcard-checkbox {
-      flex-shrink: 0;
-      width: 18px;
-      height: 18px;
-      border: 1.5px solid var(--text-muted);
-      border-radius: 4px;
-      background: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all var(--tr);
-      margin-top: 1px;
-    }
-
-    .kcard:hover .kcard-checkbox {
-      border-color: var(--accent-primary);
-    }
-
-    .kcard.is-done .kcard-checkbox {
-      background: var(--accent-success);
-      border-color: var(--accent-success);
-      box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.2);
-    }
-
-    .kcard-checkbox svg {
-      width: 11px;
-      height: 11px;
-      stroke: #fff;
-      fill: none;
-      stroke-width: 2.8;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      opacity: 0;
-      transform: scale(0.4);
-      transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
-
-    .kcard.is-done .kcard-checkbox svg {
-      opacity: 1;
-      transform: scale(1);
-    }
-
-    /* Label (Inline Editable) */
-    .kcard-label {
-      flex: 1;
-      font-size: 0.875rem;
-      font-weight: 600;
-      color: var(--text-h);
-      line-height: 1.4;
-      transition: color var(--tr), background-color var(--tr), border-color var(--tr);
-      cursor: text;
-      padding: 1px 4px;
-      margin: -1px -4px;
-      border-radius: var(--radius-sm);
-      border: 1px solid transparent;
-    }
-
-    .kcard-label:hover {
-      background: #f1f5f9;
-      border-color: #cbd5e1;
-    }
-
-    .kcard.is-done .kcard-label {
-      color: #166534;
-      font-weight: 700;
-    }
-
-    .kcard.is-done .kcard-label:hover {
-      background: #dcfce7;
-      border-color: #86efac;
-    }
-
-    .kcard-label-input {
-      flex: 1;
-      font-family: var(--font);
-      font-size: 0.875rem;
-      font-weight: 600;
-      color: var(--text-h);
-      line-height: 1.4;
-      padding: 1px 4px;
-      margin: -1px -4px;
-      border: 1.5px solid var(--accent-primary);
-      border-radius: var(--radius-sm);
-      outline: none;
-      background: #ffffff;
-      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
-    }
-
-    /* ─── Deadline Badge (Inline Editable) ─── */
-    .badge-deadline {
-      cursor: text;
-      transition: all var(--tr);
-      user-select: none;
-    }
-
-    .badge-deadline:hover {
-      border-color: #f59e0b;
-      box-shadow: 0 0 0 1.5px rgba(245, 158, 11, 0.25);
-    }
-
-    .badge-deadline.is-empty {
-      background: transparent;
-      border-style: dashed;
-      color: var(--text-muted);
-      font-weight: 500;
-    }
-
-    .badge-deadline.is-empty:hover {
-      background: #fffbeb;
-      color: #92400e;
-      border-style: solid;
-    }
-
-    .badge-deadline-input {
-      font-family: var(--font);
-      font-size: 0.68rem;
-      font-weight: 600;
-      padding: 1px 6px;
-      border-radius: 3px;
-      background: #ffffff;
-      color: #92400e;
-      border: 1.5px solid var(--accent-primary);
-      outline: none;
-      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
-      width: 140px;
-    }
-
-    /* ─── Card meta row ─── */
-    .kcard-meta {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-top: 9px;
-      padding-left: 28px;
-      flex-wrap: wrap;
-    }
-
-    /* Deadline badge */
-    .badge-deadline {
-      display: inline-flex;
-      align-items: center;
-      gap: 3px;
-      font-size: 0.68rem;
-      font-weight: 600;
-      padding: 2px 7px;
-      border-radius: 3px;
-      background: #fffbeb;
-      color: #92400e;
-      border: 1px solid #fde68a;
-    }
-
-    .kcard.is-done .badge-deadline {
-      background: #dcfce7;
-      color: #14532d;
-      border-color: #86efac;
-    }
-
-    /* Category pill */
-    .badge-cat {
-      font-size: 0.65rem;
-      font-weight: 600;
-      padding: 2px 7px;
-      border-radius: 3px;
-      letter-spacing: 0.03em;
-    }
-
-    .badge-cat.daily {
-      background: var(--pill-daily-bg);
-      color: var(--pill-daily-fg);
-    }
-
-    .badge-cat.monthly {
-      background: var(--pill-monthly-bg);
-      color: var(--pill-monthly-fg);
-    }
-
-    .badge-cat.weekly {
-      background: var(--pill-weekly-bg);
-      color: var(--pill-weekly-fg);
-    }
-
-    /* ─── Card memo row ─── */
-    .kcard-memo-wrap {
-      padding-left: 28px;
-      margin-top: 8px;
-    }
-
-    .kcard-memo {
-      width: 100%;
-      font-family: var(--font);
-      font-size: 0.75rem;
-      color: var(--text-body);
-      background: #f8fafc;
-      border: 1px solid var(--border-base);
-      border-radius: var(--radius-sm);
-      padding: 5px 9px;
-      outline: none;
-      transition: all var(--tr);
-      cursor: text;
-    }
-
-    .kcard-memo::placeholder {
-      color: var(--text-muted);
-    }
-
-    .kcard-memo:focus {
-      border-color: #93c5fd;
-      background: #fff;
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
-    }
-
-    /* ═══════════════════════════════════════════
-       Error
-    ═══════════════════════════════════════════ */
-    #config-error {
-      max-width: 900px;
-      margin: 40px auto;
-      padding: 20px 24px;
-      background: #fef2f2;
-      border: 1px solid #fca5a5;
-      border-radius: var(--radius-md);
-      color: var(--accent-danger);
-      font-size: 0.875rem;
-      line-height: 1.7;
-      display: none;
-      white-space: pre-wrap;
-    }
-
-    /* ═══════════════════════════════════════════
-       Footer
-    ═══════════════════════════════════════════ */
-    .app-footer {
-      text-align: center;
-      font-size: 0.72rem;
-      color: var(--text-muted);
-      padding: 12px 24px 24px;
-      border-top: 1px solid var(--border-base);
-    }
-
-    /* ═══════════════════════════════════════════
-       Responsive
-    ═══════════════════════════════════════════ */
-    @media (max-width: 1200px) {
-      .kanban-root {
-        grid-template-columns: repeat(2, 1fr) !important;
-        gap: 16px;
-      }
-    }
-
-    @media (max-width: 700px) {
-      .kanban-root {
-        grid-template-columns: 1fr !important;
-        padding: 16px;
-      }
-    }
-
-    @media print {
-      body {
-        background: #fff;
-      }
-
-      .app-header {
-        box-shadow: none;
-        border-bottom: 1px solid #ccc;
-      }
-
-      .btn-clear,
-      .btn-reset,
-      .btn-add-item,
-      .btn-card-delete {
-        display: none !important;
-      }
-
-      .kcard {
-        box-shadow: none;
-        page-break-inside: avoid;
-      }
-    }
-  </style>
-</head>
-
-<body>
-
-  <!-- ヘッダー -->
-  <header class="app-header" role="banner">
-    <div class="header-inner">
-      <div class="header-left">
-        <span class="header-dot" aria-hidden="true"></span>
-        <h1 class="header-title" id="app-title-heading">checklist</h1>
-      </div>
-      <button class="btn-reset" id="btn-reset" aria-label="初期状態にリセット" title="すべてのタスク・順序・編集内容を現在の初期状態に戻します">
-        <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8"
-          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M2.5 8a5.5 5.5 0 1 0 1.2-3.4L1.5 6" />
-          <path d="M1.5 2v4h4" />
-        </svg>
-        リセット
-      </button>
-    </div>
-  </header>
-
-  <!-- Config エラー表示 -->
-  <div id="config-error" role="alert" aria-live="assertive"></div>
-
-  <!-- カンバンボード（JS で動的生成） -->
-  <div class="kanban-root" id="kanban-root" role="main"></div>
-
-  <!-- フッター -->
-  <footer class="app-footer" id="app-footer" role="contentinfo"></footer>
-
-  <!-- ═══════════════════════════════════════════════════════════════
-       設定データ (CHECKLIST_CONFIG)
-       項目の追加・変更・削除はこのブロックを編集してください。
-  ═══════════════════════════════════════════════════════════════ -->
-  <script>
-    /**
-     * 提出物チェックリスト — 設定データ
-     *
-     * 各項目フィールドの説明:
-     *   id       : 内部識別子（英数字・アンダースコアのみ / 他の項目と重複禁止）
-     *   label    : 画面に表示される提出物名
-     *   deadline : 期限テキスト（画面に表示されるだけ / 自由記述）
-     *   category : グループ分けカテゴリ（categories に定義した id と一致させる）
-     *   note     : 備考の初期値（空文字で「なし」）
-     */
-    const CHECKLIST_CONFIG = {
-
-      /** アプリのタイトル（ヘッダーに表示） */
-      appTitle: "checklist",
-
-      /** フッターに表示する補足テキスト（不要なら空文字 "" にする） */
-      footerText: "チェック状態はこのPCのブラウザに保存されます。クリア後は再入力してください。",
-
-      /**
-       * カテゴリ定義
-       *   id    : items の category フィールドと一致させる
-       *   label : 見出しとして表示される名称
-       *   icon  : 見出し横の絵文字アイコン（省略可）
-       */
-      categories: [
-        { id: "daily", label: "日次" },
-        { id: "weekly", label: "週次" },
-        { id: "monthly", label: "月次" },
-      ],
-
-      /**
-       * チェックリスト項目
-       * ※ id は重複しないようにしてください
-       */
+﻿<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'self';">
+  <meta name="description" content="チェックリスト — 提出期限と状況を管理するツール">
+  <meta name="referrer" content="no-referrer">
+  <title>checklist</title>
+  <style>
+    /* ═══════════════════════════════════════════
+       Design Tokens — Light / Business
+    ═══════════════════════════════════════════ */
+    :root {
+      --bg-page: #f1f4f8;
+      --bg-header: #ffffff;
+      --bg-card: #ffffff;
+      --bg-col-base: #f8fafc;
+      --bg-col-done: #f0fdf4;
+      --border-base: #e2e8f0;
+      --border-card: #e9edf2;
+      --border-done: #bbf7d0;
+
+      --accent-primary: #2563eb;
+      --accent-success: #16a34a;
+      --accent-danger: #dc2626;
+      --accent-badge: #d97706;
+
+      --text-h: #0f172a;
+      --text-body: #334155;
+      --text-sub: #64748b;
+      --text-muted: #94a3b8;
+
+      --pill-daily-bg: #fef3c7;
+      --pill-daily-fg: #92400e;
+      --pill-monthly-bg: #eff6ff;
+      --pill-monthly-fg: #1d4ed8;
+      --pill-weekly-bg: #faf5ff;
+      --pill-weekly-fg: #7c3aed;
+
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+
+      --shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.04);
+
+      --font: 'Segoe UI', 'Yu Gothic UI', 'Meiryo UI', system-ui, sans-serif;
+      --tr: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* ═══════════════════════════════════════════
+       Reset
+    ═══════════════════════════════════════════ */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg-page);
+      color: var(--text-body);
+      min-height: 100vh;
+    }
+
+    /* ═══════════════════════════════════════════
+       Header
+    ═══════════════════════════════════════════ */
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--bg-header);
+      border-bottom: 1px solid var(--border-base);
+      box-shadow: var(--shadow-xs);
+    }
+
+    .header-inner {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 0 28px;
+      height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .header-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #eab308;
+      box-shadow: 0 0 0 2.5px rgba(234, 179, 8, 0.25);
+      flex-shrink: 0;
+    }
+
+    .header-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-h);
+      letter-spacing: -0.01em;
+    }
+
+    .btn-clear {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 0.74rem;
+      font-weight: 600;
+      font-family: var(--font);
+      cursor: pointer;
+      border: 1px solid #fca5a5;
+      background: #fff;
+      color: var(--accent-danger);
+      transition: all var(--tr);
+      white-space: nowrap;
+    }
+
+    .btn-clear:hover {
+      background: #fef2f2;
+      border-color: var(--accent-danger);
+      box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08);
+    }
+
+    .btn-clear:active {
+      transform: scale(0.97);
+    }
+
+    /* ─── Header Reset Button ─── */
+    .btn-reset {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 0.76rem;
+      font-weight: 600;
+      font-family: var(--font);
+      cursor: pointer;
+      border: 1px solid var(--border-base);
+      background: #ffffff;
+      color: var(--text-sub);
+      transition: all var(--tr);
+      white-space: nowrap;
+    }
+
+    .btn-reset:hover {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+      color: var(--text-h);
+      box-shadow: var(--shadow-xs);
+      transform: translateY(-0.5px);
+    }
+
+    .btn-reset:active {
+      transform: scale(0.97);
+    }
+
+    /* ═══════════════════════════════════════════
+       Kanban Layout — 3列 (動的生成)
+    ═══════════════════════════════════════════ */
+    .kanban-root {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 28px 28px 60px;
+      display: grid;
+      /* JS で grid-template-columns を動的設定 (初期値4列) */
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    /* ─── Add Item Button in Column Header ─── */
+    .btn-add-item {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: var(--radius-sm);
+      font-size: 0.95rem;
+      font-weight: 700;
+      line-height: 1;
+      cursor: pointer;
+      border: 1px solid var(--border-base);
+      background: #ffffff;
+      color: var(--text-sub);
+      transition: all var(--tr);
+    }
+
+    .btn-add-item:hover {
+      background: #eff6ff;
+      border-color: var(--accent-primary);
+      color: var(--accent-primary);
+      box-shadow: 0 1px 4px rgba(37, 99, 235, 0.15);
+    }
+
+    .btn-add-item:active {
+      transform: scale(0.94);
+    }
+
+    /* ─── Delete Button for Cards (Hover Display) ─── */
+    .btn-card-delete {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 1rem;
+      font-weight: 700;
+      line-height: 1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--tr);
+      opacity: 0;
+      visibility: hidden;
+      margin-left: 6px;
+      flex-shrink: 0;
+    }
+
+    .kcard:hover .btn-card-delete,
+    .btn-card-delete:focus-visible {
+      opacity: 0.6;
+      visibility: visible;
+    }
+
+    .btn-card-delete:hover {
+      background: #fee2e2;
+      color: var(--accent-danger);
+      opacity: 1;
+      transform: scale(1.15);
+    }
+
+    /* ─── Inline Card Creation Form ─── */
+    .kcard-form {
+      border: 1.5px dashed var(--accent-primary) !important;
+      background: #ffffff !important;
+      cursor: default !important;
+      box-shadow: 0 3px 10px rgba(37, 99, 235, 0.08) !important;
+      transform: none !important;
+    }
+
+    .kcard-checkbox.is-dummy {
+      border-style: dashed;
+      cursor: default;
+    }
+
+    .kcard-input-title {
+      flex: 1;
+      border: 1px solid var(--border-base);
+      border-radius: var(--radius-sm);
+      padding: 5px 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      font-family: var(--font);
+      color: var(--text-h);
+      outline: none;
+      transition: border-color var(--tr), box-shadow var(--tr);
+    }
+
+    .kcard-input-title:focus {
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 2.5px rgba(37, 99, 235, 0.12);
+    }
+
+    .kcard-input-title.is-invalid {
+      border-color: var(--accent-danger);
+      box-shadow: 0 0 0 2.5px rgba(220, 38, 38, 0.12);
+    }
+
+    .kcard-form-row {
+      margin-top: 8px;
+      padding-left: 28px;
+    }
+
+    .kcard-input-deadline {
+      width: 100%;
+      border: 1px solid var(--border-base);
+      border-radius: var(--radius-sm);
+      padding: 4px 8px;
+      font-size: 0.74rem;
+      font-family: var(--font);
+      color: var(--text-body);
+      outline: none;
+      transition: border-color var(--tr), box-shadow var(--tr);
+    }
+
+    .kcard-input-deadline:focus {
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 2.5px rgba(37, 99, 235, 0.12);
+    }
+
+    .kcard-form-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 10px;
+      padding-left: 28px;
+    }
+
+    .btn-form-submit {
+      padding: 4px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 0.74rem;
+      font-weight: 600;
+      font-family: var(--font);
+      background: var(--accent-primary);
+      color: #ffffff;
+      border: none;
+      cursor: pointer;
+      transition: all var(--tr);
+    }
+
+    .btn-form-submit:hover {
+      background: #1d4ed8;
+      box-shadow: 0 2px 5px rgba(37, 99, 235, 0.25);
+    }
+
+    .btn-form-cancel {
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 0.74rem;
+      font-weight: 500;
+      font-family: var(--font);
+      background: transparent;
+      color: var(--text-sub);
+      border: 1px solid var(--border-base);
+      cursor: pointer;
+      transition: all var(--tr);
+    }
+
+    .btn-form-cancel:hover {
+      background: #f1f5f9;
+      color: var(--text-h);
+    }
+
+    /* ─── Column ─── */
+    .kanban-col {
+      background: var(--bg-col-base);
+      border: 1px solid var(--border-base);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .kanban-col.col-done {
+      background: var(--bg-col-done);
+      border-color: var(--border-done);
+    }
+
+    .col-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border-base);
+      background: rgba(255, 255, 255, 0.6);
+    }
+
+    .col-done .col-header {
+      border-bottom-color: var(--border-done);
+      background: rgba(240, 253, 244, 0.8);
+    }
+
+    .col-header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .col-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-badge);
+      flex-shrink: 0;
+    }
+
+    .col-done .col-dot {
+      background: var(--accent-success);
+    }
+
+    /* 各タスクのカテゴリ（日次・週次・月次）色に連動 */
+    #col-daily .col-dot,
+    .col-daily .col-dot {
+      background: var(--pill-daily-fg);
+      box-shadow: 0 0 0 2px var(--pill-daily-bg);
+    }
+
+    #col-weekly .col-dot,
+    .col-weekly .col-dot {
+      background: var(--pill-weekly-fg);
+      box-shadow: 0 0 0 2px var(--pill-weekly-bg);
+    }
+
+    #col-monthly .col-dot,
+    .col-monthly .col-dot {
+      background: var(--pill-monthly-fg);
+      box-shadow: 0 0 0 2px var(--pill-monthly-bg);
+    }
+
+    .col-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text-body);
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .col-body {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 120px;
+    }
+
+    /* Empty state */
+    .col-empty {
+      text-align: center;
+      padding: 28px 16px;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+
+    /* ─── Drag & Drop ─── */
+    .kcard.is-dragging {
+      opacity: 0.38 !important;
+      transform: scale(0.98) !important;
+      border: 1.5px dashed var(--accent-primary) !important;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.15) !important;
+      cursor: grabbing !important;
+    }
+
+    .kcard-drag-handle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 12px;
+      height: 18px;
+      color: var(--text-muted);
+      cursor: grab;
+      opacity: 0.35;
+      flex-shrink: 0;
+      transition: opacity var(--tr), color var(--tr);
+      margin-right: 2px;
+    }
+
+    .kcard:hover .kcard-drag-handle {
+      opacity: 0.85;
+      color: var(--accent-primary);
+    }
+
+    .col-body.drag-over {
+      background: rgba(37, 99, 235, 0.035);
+      border-radius: var(--radius-md);
+      outline: 1.5px dashed rgba(37, 99, 235, 0.3);
+      outline-offset: -2px;
+    }
+
+    /* ═══════════════════════════════════════════
+       Kanban Card
+    ═══════════════════════════════════════════ */
+    .kcard {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-md);
+      padding: 14px 14px 12px;
+      box-shadow: var(--shadow-xs);
+      cursor: pointer;
+      transition: box-shadow var(--tr), transform var(--tr), border-color var(--tr);
+      user-select: none;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kcard::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      border-radius: 3px 0 0 3px;
+      background: var(--accent-primary);
+      opacity: 0;
+      transition: opacity var(--tr);
+    }
+
+    .kcard:hover {
+      box-shadow: var(--shadow-sm);
+      border-color: #cbd5e1;
+      transform: translateY(-1px);
+    }
+
+    .kcard:hover::before {
+      opacity: 1;
+    }
+
+    .kcard:active {
+      transform: translateY(0);
+    }
+
+    /* ─── チェック中の一瞬状態（移動前アニメ） ─── */
+    .kcard.is-checking .kcard-checkbox {
+      background: var(--accent-success);
+      border-color: var(--accent-success);
+      box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.2);
+    }
+
+    .kcard.is-checking .kcard-checkbox svg {
+      opacity: 1;
+      transform: scale(1.1);
+    }
+
+    /* Done state */
+    .kcard.is-done {
+      border-color: #bbf7d0;
+      background: #f0fdf4;
+    }
+
+    .kcard.is-done::before {
+      background: var(--accent-success);
+      opacity: 1;
+    }
+
+    /* Moving animation */
+    @keyframes cardAppear {
+      from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.97);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .kcard.entering {
+      animation: cardAppear 0.25s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+    }
+
+    /* ─── Card top row ─── */
+    .kcard-top {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    /* Checkbox */
+    .kcard-checkbox {
+      flex-shrink: 0;
+      width: 18px;
+      height: 18px;
+      border: 1.5px solid var(--text-muted);
+      border-radius: 4px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--tr);
+      margin-top: 1px;
+    }
+
+    .kcard:hover .kcard-checkbox {
+      border-color: var(--accent-primary);
+    }
+
+    .kcard.is-done .kcard-checkbox {
+      background: var(--accent-success);
+      border-color: var(--accent-success);
+      box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.2);
+    }
+
+    .kcard-checkbox svg {
+      width: 11px;
+      height: 11px;
+      stroke: #fff;
+      fill: none;
+      stroke-width: 2.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      opacity: 0;
+      transform: scale(0.4);
+      transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .kcard.is-done .kcard-checkbox svg {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    /* Label (Inline Editable) */
+    .kcard-label {
+      flex: 1;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-h);
+      line-height: 1.4;
+      transition: color var(--tr), background-color var(--tr), border-color var(--tr);
+      cursor: text;
+      padding: 1px 4px;
+      margin: -1px -4px;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+    }
+
+    .kcard-label:hover {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+    }
+
+    .kcard.is-done .kcard-label {
+      color: #166534;
+      font-weight: 700;
+    }
+
+    .kcard.is-done .kcard-label:hover {
+      background: #dcfce7;
+      border-color: #86efac;
+    }
+
+    .kcard-label-input {
+      flex: 1;
+      font-family: var(--font);
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-h);
+      line-height: 1.4;
+      padding: 1px 4px;
+      margin: -1px -4px;
+      border: 1.5px solid var(--accent-primary);
+      border-radius: var(--radius-sm);
+      outline: none;
+      background: #ffffff;
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+    }
+
+    /* ─── Deadline Badge (Inline Editable) ─── */
+    .badge-deadline {
+      cursor: text;
+      transition: all var(--tr);
+      user-select: none;
+    }
+
+    .badge-deadline:hover {
+      border-color: #f59e0b;
+      box-shadow: 0 0 0 1.5px rgba(245, 158, 11, 0.25);
+    }
+
+    .badge-deadline.is-empty {
+      background: transparent;
+      border-style: dashed;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .badge-deadline.is-empty:hover {
+      background: #fffbeb;
+      color: #92400e;
+      border-style: solid;
+    }
+
+    .badge-deadline-input {
+      font-family: var(--font);
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 3px;
+      background: #ffffff;
+      color: #92400e;
+      border: 1.5px solid var(--accent-primary);
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+      width: 140px;
+    }
+
+    /* ─── Card meta row ─── */
+    .kcard-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 9px;
+      padding-left: 28px;
+      flex-wrap: wrap;
+    }
+
+    /* Deadline badge */
+    .badge-deadline {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 3px;
+      background: #fffbeb;
+      color: #92400e;
+      border: 1px solid #fde68a;
+    }
+
+    .kcard.is-done .badge-deadline {
+      background: #dcfce7;
+      color: #14532d;
+      border-color: #86efac;
+    }
+
+    /* Category pill */
+    .badge-cat {
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 3px;
+      letter-spacing: 0.03em;
+    }
+
+    .badge-cat.daily {
+      background: var(--pill-daily-bg);
+      color: var(--pill-daily-fg);
+    }
+
+    .badge-cat.monthly {
+      background: var(--pill-monthly-bg);
+      color: var(--pill-monthly-fg);
+    }
+
+    .badge-cat.weekly {
+      background: var(--pill-weekly-bg);
+      color: var(--pill-weekly-fg);
+    }
+
+    /* ─── Card memo row ─── */
+    .kcard-memo-wrap {
+      padding-left: 28px;
+      margin-top: 8px;
+    }
+
+    .kcard-memo {
+      width: 100%;
+      font-family: var(--font);
+      font-size: 0.75rem;
+      color: var(--text-body);
+      background: #f8fafc;
+      border: 1px solid var(--border-base);
+      border-radius: var(--radius-sm);
+      padding: 5px 9px;
+      outline: none;
+      transition: all var(--tr);
+      cursor: text;
+    }
+
+    .kcard-memo::placeholder {
+      color: var(--text-muted);
+    }
+
+    .kcard-memo:focus {
+      border-color: #93c5fd;
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+    }
+
+    /* ═══════════════════════════════════════════
+       Error
+    ═══════════════════════════════════════════ */
+    #config-error {
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 20px 24px;
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      border-radius: var(--radius-md);
+      color: var(--accent-danger);
+      font-size: 0.875rem;
+      line-height: 1.7;
+      display: none;
+      white-space: pre-wrap;
+    }
+
+    /* ═══════════════════════════════════════════
+       Footer
+    ═══════════════════════════════════════════ */
+    .app-footer {
+      text-align: center;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      padding: 12px 24px 24px;
+      border-top: 1px solid var(--border-base);
+    }
+
+    /* ═══════════════════════════════════════════
+       Responsive
+    ═══════════════════════════════════════════ */
+    @media (max-width: 1200px) {
+      .kanban-root {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 16px;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .kanban-root {
+        grid-template-columns: 1fr !important;
+        padding: 16px;
+      }
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      .app-header {
+        box-shadow: none;
+        border-bottom: 1px solid #ccc;
+      }
+
+      .btn-clear,
+      .btn-reset,
+      .btn-add-item,
+      .btn-card-delete {
+        display: none !important;
+      }
+
+      .kcard {
+        box-shadow: none;
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ヘッダー -->
+  <header class="app-header" role="banner">
+    <div class="header-inner">
+      <div class="header-left">
+        <span class="header-dot" aria-hidden="true"></span>
+        <h1 class="header-title" id="app-title-heading">checklist</h1>
+      </div>
+      <button class="btn-reset" id="btn-reset" aria-label="初期状態にリセット" title="すべてのタスク・順序・編集内容を現在の初期状態に戻します">
+        <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M2.5 8a5.5 5.5 0 1 0 1.2-3.4L1.5 6" />
+          <path d="M1.5 2v4h4" />
+        </svg>
+        リセット
+      </button>
+    </div>
+  </header>
+
+  <!-- Config エラー表示 -->
+  <div id="config-error" role="alert" aria-live="assertive"></div>
+
+  <!-- カンバンボード（JS で動的生成） -->
+  <div class="kanban-root" id="kanban-root" role="main"></div>
+
+  <!-- フッター -->
+  <footer class="app-footer" id="app-footer" role="contentinfo"></footer>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       設定データ (CHECKLIST_CONFIG)
+       項目の追加・変更・削除はこのブロックを編集してください。
+  ═══════════════════════════════════════════════════════════════ -->
+  <script>
+    /**
+     * 提出物チェックリスト — 設定データ
+     *
+     * 各項目フィールドの説明:
+     *   id       : 内部識別子（英数字・アンダースコアのみ / 他の項目と重複禁止）
+     *   label    : 画面に表示される提出物名
+     *   deadline : 期限テキスト（画面に表示されるだけ / 自由記述）
+     *   category : グループ分けカテゴリ（categories に定義した id と一致させる）
+     *   note     : 備考の初期値（空文字で「なし」）
+     */
+    const CHECKLIST_CONFIG = {
+
+      /** アプリのタイトル（ヘッダーに表示） */
+      appTitle: "checklist",
+
+      /** フッターに表示する補足テキスト（不要なら空文字 "" にする） */
+      footerText: "チェック状態はこのPCのブラウザに保存されます。クリア後は再入力してください。",
+
+      /**
+       * カテゴリ定義
+       *   id    : items の category フィールドと一致させる
+       *   label : 見出しとして表示される名称
+       *   icon  : 見出し横の絵文字アイコン（省略可）
+       */
+      categories: [
+        { id: "daily", label: "日次" },
+        { id: "weekly", label: "週次" },
+        { id: "monthly", label: "月次" },
+      ],
+
+      /**
+       * チェックリスト項目
+       * ※ id は重複しないようにしてください
+       */
       items: [
-        {
-          id: "daily_shift_plan",
-          label: "日別シフト計画表確認",
-          deadline: "毎日",
-          category: "daily",
-          note: ""
-        },
-        {
-          id: "manufacturing_plan",
-          label: "製造計画表確認(格納)",
-          deadline: "毎日",
-          category: "daily",
-          note: ""
-        },
-        {
-          id: "quality_abnormal_report",
-          label: "品質異常報告書",
-          deadline: "随時",
-          category: "daily",
-          note: ""
-        },
-        {
-          id: "customer_voice",
-          label: "お客様の声",
-          deadline: "随時",
-          category: "daily",
-          note: ""
-        },
-        {
-          id: "priority_item_improvement_image",
-          label: "重点商品改善画像",
-          deadline: "13時迄",
-          category: "daily",
-          note: ""
-        },
-        {
-          id: "store_manager_schedule",
-          label: "店長行動スケジュール",
-          deadline: "毎週月曜日",
-          category: "weekly",
-          note: ""
-        },
-        {
-          id: "weekly_performance",
-          label: "週間業績改善報告書",
-          deadline: "毎週日曜日 17時〆",
-          category: "weekly",
-          note: ""
-        },
-        {
-          id: "flyer_image",
-          label: "チラシ掲載商品売場画像",
-          deadline: "毎週土曜日",
-          category: "weekly",
-          note: ""
-        },
-        {
-          id: "monthly_report",
-          label: "月次報告書",
-          deadline: "7日頃（案内）〆",
-          category: "monthly",
-          note: ""
-        },
-        {
-          id: "abnormal_report",
-          label: "異常値報告書（中間/期末）",
-          deadline: "19日 / 4日〆",
-          category: "monthly",
-          note: ""
-        },
-        {
-          id: "daily_budget",
-          label: "日割り予算",
-          deadline: "毎月20日〆",
-          category: "monthly",
-          note: ""
-        },
-        {
-          id: "interim_report",
-          label: "中間棚卸報告書",
-          deadline: "21日頃（案内）〆",
-          category: "monthly",
-          note: ""
-        },
-        {
-          id: "5s_improvement",
-          label: "5S改善項目一覧",
-          deadline: "月末〆",
-          category: "monthly",
-          note: ""
-        },
-        {
-          id: "end_plan",
-          label: "エンド計画表",
-          deadline: "月末〆",
-          category: "monthly",
-          note: ""
-        },
-        {
-          id: "expiry_check",
-          label: "賞味期限チェック表",
-          deadline: "月末〆",
-          category: "monthly",
-          note: ""
-        },
-        {
-          id: "out_of_stock_checklist",
-          label: "欠品チェックリスト",
-          deadline: "月末〆",
-          category: "monthly",
-          note: ""
-        },
-      ]
-    };
-  </script>
-
-  <!-- アプリロジック -->
-  <script>
-    (function () {
-      'use strict';
-
-      // ─────────────────────────────────────────────
-      // 定数
-      // ─────────────────────────────────────────────
-      const LS_PREFIX = 'checklist_v1_';
-      const LS_CHECKED = LS_PREFIX + 'checked';
-      const LS_MEMO = LS_PREFIX + 'memo';
-      const LS_CUSTOM_ITEMS = LS_PREFIX + 'custom_items';
-      const LS_DELETED_ITEMS = LS_PREFIX + 'deleted_items';
-      const LS_ORDER = LS_PREFIX + 'order';
-      const LS_EDITS = LS_PREFIX + 'edits';
-
-      /** カードが移動するまでのチェックマーク表示時間 (ms) */
-      const CHECK_ANIM_MS = 300;
-
-      // ─────────────────────────────────────────────
-      // ユーティリティ & ストレージヘルパー
-      // ─────────────────────────────────────────────
-
-      /** XSS防止: textContent で安全にテキストを設定 */
-      function safeText(el, text) {
-        el.textContent = String(text ?? '');
-      }
-
-      /** 文字列を指定長に切り詰める */
-      function truncate(str, max) {
-        if (typeof str !== 'string') return '';
-        return str.length > max ? str.slice(0, max) : str;
-      }
-
-      /** 安全な localStorage 読み込み */
-      function getStorageJson(key, fallback) {
-        try {
-          const raw = localStorage.getItem(key);
-          if (!raw) return fallback;
-          const parsed = JSON.parse(raw);
-          return parsed !== null && parsed !== undefined ? parsed : fallback;
-        } catch (e) {
-          console.warn(`[checklist] localStorage 読み込み失敗 (${key}):`, e.message);
-          return fallback;
-        }
-      }
-
-      /** 安全な localStorage 保存 */
-      function setStorageJson(key, val) {
-        try {
-          localStorage.setItem(key, JSON.stringify(val));
-        } catch (e) {
-          console.warn(`[checklist] localStorage 保存失敗 (${key}):`, e.message);
-        }
-      }
-
-      /** 安全な localStorage 削除 */
-      function removeStorageItem(key) {
-        try {
-          localStorage.removeItem(key);
-        } catch (e) {
-          console.warn(`[checklist] localStorage 削除失敗 (${key}):`, e.message);
-        }
-      }
-
-      // ─────────────────────────────────────────────
-      // 設定バリデーション
-      // ─────────────────────────────────────────────
-
-      function validateConfig() {
-        const errors = [];
-        if (typeof CHECKLIST_CONFIG !== 'object' || CHECKLIST_CONFIG === null) {
-          errors.push('CHECKLIST_CONFIG が定義されていません。HTML内の設定データブロックを確認してください。');
-          return errors;
-        }
-        if (!Array.isArray(CHECKLIST_CONFIG.items) || CHECKLIST_CONFIG.items.length === 0) {
-          errors.push('CHECKLIST_CONFIG.items が空または未定義です。');
-        }
-        if (!Array.isArray(CHECKLIST_CONFIG.categories) || CHECKLIST_CONFIG.categories.length === 0) {
-          errors.push('CHECKLIST_CONFIG.categories が空または未定義です。');
-        }
-        const ids = new Set();
-        (CHECKLIST_CONFIG.items || []).forEach((item, idx) => {
-          if (!item.id || typeof item.id !== 'string') {
-            errors.push(`items[${idx}].id が未設定または文字列ではありません。`);
-          } else if (ids.has(item.id)) {
-            errors.push(`items の id "${item.id}" が重複しています。`);
-          } else {
-            ids.add(item.id);
-          }
-          if (!item.label || typeof item.label !== 'string') {
-            errors.push(`items[${idx}].label が未設定です。`);
-          }
-        });
-        return errors;
-      }
-
-      // ─────────────────────────────────────────────
-      // 状態管理
-      // ─────────────────────────────────────────────
-
-      /** @type {Set<string>} チェック済みアイテムID集合 */
-      let checkedSet = new Set();
-      /** @type {Object<string,string>} アイテムID別メモマップ */
-      let memoMap = Object.create(null);
-      /** @type {Array<Object>} ユーザー追加カスタムタスク */
-      let customItems = [];
-      /** @type {Set<string>} 削除済みタスクID集合 */
-      let deletedItemIds = new Set();
-      /** @type {Array<string>} 並び替え順序リスト */
-      let itemOrderList = [];
-      /** @type {Object<string, {label?: string, deadline?: string}>} 編集済み差分マップ */
-      let itemEditsMap = Object.create(null);
-
-      function getAllItems() {
-        const rawList = [...CHECKLIST_CONFIG.items, ...customItems].filter(
-          item => !deletedItemIds.has(item.id)
-        ).map(item => {
-          const edit = itemEditsMap[item.id];
-          if (edit) {
-            return {
-              ...item,
-              label: edit.label !== undefined ? edit.label : item.label,
-              deadline: edit.deadline !== undefined ? edit.deadline : item.deadline
-            };
-          }
-          return item;
-        });
-
-        if (!itemOrderList || itemOrderList.length === 0) return rawList;
-
-        const orderMap = new Map();
-        itemOrderList.forEach((id, idx) => orderMap.set(id, idx));
-
-        return rawList.sort((a, b) => {
-          const idxA = orderMap.has(a.id) ? orderMap.get(a.id) : 9999;
-          const idxB = orderMap.has(b.id) ? orderMap.get(b.id) : 9999;
-          return idxA - idxB;
-        });
-      }
-
-      function loadState() {
-        const rawChecked = getStorageJson(LS_CHECKED, []);
-        if (Array.isArray(rawChecked)) {
-          checkedSet = new Set(rawChecked.filter(id => typeof id === 'string'));
-        }
-
-        const rawMemo = getStorageJson(LS_MEMO, {});
-        if (rawMemo && typeof rawMemo === 'object' && !Array.isArray(rawMemo)) {
-          const cleanMap = Object.create(null);
-          for (const [k, v] of Object.entries(rawMemo)) {
-            if (typeof k === 'string' && typeof v === 'string') {
-              cleanMap[k] = truncate(v, 200);
-            }
-          }
-          memoMap = cleanMap;
-        }
-
-        const rawCustom = getStorageJson(LS_CUSTOM_ITEMS, []);
-        if (Array.isArray(rawCustom)) {
-          customItems = rawCustom.filter(it =>
-            it && typeof it === 'object' &&
-            typeof it.id === 'string' &&
-            typeof it.label === 'string' &&
-            typeof it.category === 'string'
-          ).map(it => ({
-            id: truncate(it.id.replace(/[^a-zA-Z0-9_-]/g, ''), 64),
-            label: truncate(String(it.label), 100),
-            deadline: truncate(String(it.deadline || ''), 50),
-            category: truncate(String(it.category), 32),
-            note: truncate(String(it.note || ''), 200),
-            isCustom: true
-          }));
-        }
-
-        const rawDeleted = getStorageJson(LS_DELETED_ITEMS, []);
-        if (Array.isArray(rawDeleted)) {
-          deletedItemIds = new Set(rawDeleted.filter(id => typeof id === 'string'));
-        }
-
-        const rawOrder = getStorageJson(LS_ORDER, []);
-        if (Array.isArray(rawOrder)) {
-          itemOrderList = rawOrder.filter(id => typeof id === 'string');
-        }
-
-        const rawEdits = getStorageJson(LS_EDITS, {});
-        if (rawEdits && typeof rawEdits === 'object' && !Array.isArray(rawEdits)) {
-          const cleanEdits = Object.create(null);
-          for (const [k, v] of Object.entries(rawEdits)) {
-            if (typeof k === 'string' && v && typeof v === 'object') {
-              cleanEdits[k] = {
-                label: typeof v.label === 'string' ? truncate(v.label, 100) : undefined,
-                deadline: typeof v.deadline === 'string' ? truncate(v.deadline, 50) : undefined,
-              };
-            }
-          }
-          itemEditsMap = cleanEdits;
-        }
-      }
-
-      function saveChecked() {
-        setStorageJson(LS_CHECKED, [...checkedSet]);
-      }
-
-      function saveMemoStorage() {
-        setStorageJson(LS_MEMO, memoMap);
-      }
-
-      function saveMemo(id, value) {
-        memoMap[id] = value;
-        saveMemoStorage();
-      }
-
-      function saveCustomItems() {
-        setStorageJson(LS_CUSTOM_ITEMS, customItems);
-      }
-
-      function addCustomItem(category, label, deadline) {
-        const id = 'custom_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
-        const newItem = {
-          id: id,
-          label: truncate(label.trim(), 100),
-          deadline: truncate(deadline.trim(), 50),
-          category: category,
-          note: '',
-          isCustom: true
-        };
-
-        // 既存アイテム一覧とそのID順序を取得
-        const currentItems = getAllItems();
-        const currentIds = currentItems.map(it => it.id);
-
-        // 各列で追加した項目を一番上に表示するため、挿入インデックスを特定
-        // 1. 同一カテゴリの未完了アイテムがあれば、その先頭アイテムの直前に挿入
-        let targetIndex = currentItems.findIndex(it => it.category === category && !checkedSet.has(it.id));
-
-        // 2. 未完了アイテムがなければ、同一カテゴリのアイテム（完了済み含む）の先頭の直前に挿入
-        if (targetIndex === -1) {
-          targetIndex = currentItems.findIndex(it => it.category === category);
-        }
-
-        // 3. カテゴリ内のアイテムが存在しない場合、カテゴリ定義の順序に準じて後続カテゴリの先頭を探す
-        if (targetIndex === -1) {
-          const cats = (typeof CHECKLIST_CONFIG !== 'undefined' && CHECKLIST_CONFIG.categories) || [];
-          const catIdx = cats.findIndex(c => c.id === category);
-          if (catIdx !== -1) {
-            for (let i = catIdx + 1; i < cats.length; i++) {
-              const nextCatId = cats[i].id;
-              const nextIdx = currentItems.findIndex(it => it.category === nextCatId);
-              if (nextIdx !== -1) {
-                targetIndex = nextIdx;
-                break;
-              }
-            }
-          }
-        }
-
-        if (targetIndex !== -1) {
-          currentIds.splice(targetIndex, 0, id);
-        } else {
-          currentIds.unshift(id);
-        }
-
-        // customItems 配列でも先頭に追加
-        customItems.unshift(newItem);
-        saveCustomItems();
-
-        // 順序リストを更新して保存
-        itemOrderList = currentIds;
-        saveItemOrder();
-
-        buildBoard();
-      }
-
-      function saveDeletedItems() {
-        setStorageJson(LS_DELETED_ITEMS, [...deletedItemIds]);
-      }
-
-      function saveItemOrder() {
-        setStorageJson(LS_ORDER, itemOrderList);
-      }
-
-      function saveItemEdits() {
-        setStorageJson(LS_EDITS, itemEditsMap);
-      }
-
-      /** タスク名または締切のインライン編集を永続化 */
-      function updateItemField(itemId, field, value) {
-        const cleanVal = truncate(value.trim(), field === 'label' ? 100 : 50);
-
-        // カスタムアイテムの場合はオブジェクト本体を直接更新
-        const cItem = customItems.find(it => it.id === itemId);
-        if (cItem) {
-          cItem[field] = cleanVal;
-          saveCustomItems();
-        }
-
-        // デフォルトアイテムも含め編集差分マップに記録
-        if (!itemEditsMap[itemId]) {
-          itemEditsMap[itemId] = {};
-        }
-        itemEditsMap[itemId][field] = cleanVal;
-        saveItemEdits();
-      }
-
-      /** ボード上の現DOM要素の順序を収集して保存 (O(N) 最適化) */
-      function updateAndSaveOrder() {
-        const cards = document.querySelectorAll('.kanban-root .kcard:not(.kcard-form)');
-        const newOrder = [];
-        cards.forEach(card => {
-          const itemId = card.dataset.itemId;
-          if (itemId && !newOrder.includes(itemId)) {
-            newOrder.push(itemId);
-          }
-        });
-
-        // 提出済み等にある未表示アイテムの順序も末尾に保持
-        getAllItems().forEach(item => {
-          if (!newOrder.includes(item.id)) {
-            newOrder.push(item.id);
-          }
-        });
-
-        itemOrderList = newOrder;
-        saveItemOrder();
-      }
-
-      /** キーボード操作によるカード移動（Alt + ↑/↓） */
-      function moveCardByStep(itemId, step) {
-        const item = getAllItems().find(it => it.id === itemId);
-        if (!item) return;
-
-        const isDone = checkedSet.has(itemId);
-        const colId = isDone ? 'col-done-body' : 'col-' + item.category + '-body';
-        const body = document.getElementById(colId);
-        if (!body) return;
-
-        const cards = [...body.querySelectorAll('.kcard:not(.kcard-form)')];
-        const cardIds = cards.map(c => c.dataset.itemId).filter(Boolean);
-
-        const curIdx = cardIds.indexOf(itemId);
-        if (curIdx === -1) return;
-
-        const targetIdx = curIdx + step;
-        if (targetIdx < 0 || targetIdx >= cardIds.length) return;
-
-        // 列内の位置を入れ替え
-        cardIds.splice(curIdx, 1);
-        cardIds.splice(targetIdx, 0, itemId);
-
-        const remaining = itemOrderList.filter(id => !cardIds.includes(id));
-        itemOrderList = [...cardIds, ...remaining];
-        saveItemOrder();
-
-        buildBoard();
-
-        const safeId = itemId.replace(/[^a-zA-Z0-9_-]/g, '');
-        const movedCard = document.getElementById('card-' + safeId);
-        if (movedCard) movedCard.focus();
-      }
-
-      // ── ドラッグ＆ドロップ用イベントハンドラ＆オートスクロール ──
-      let isDraggingActive = false;
-      let autoScrollRafId = null;
-      let autoScrollVelocity = 0;
-      let lastClientX = null;
-      let lastClientY = null;
-
-      /** 画面端へのドラッグ時にスクロール速度を算出 */
-      function updateAutoScrollVelocity(clientY) {
-        const topThreshold = 140; // ヘッダー高さを考慮した上端検知ゾーン (px)
-        const bottomThreshold = window.innerHeight - 100; // 下端検知ゾーン (px)
-        const maxSpeed = 22; // 最大スクロール速度 (px/frame)
-
-        if (clientY < topThreshold) {
-          const ratio = (topThreshold - Math.max(0, clientY)) / topThreshold;
-          autoScrollVelocity = -Math.max(4, Math.round(ratio * maxSpeed));
-        } else if (clientY > bottomThreshold) {
-          const ratio = (clientY - bottomThreshold) / 100;
-          autoScrollVelocity = Math.max(4, Math.round(Math.min(1, ratio) * maxSpeed));
-        } else {
-          autoScrollVelocity = 0;
-        }
-      }
-
-      /** requestAnimationFrame によるスムーズな自動スクロールループ */
-      function autoScrollLoop() {
-        if (!isDraggingActive) {
-          autoScrollRafId = null;
-          autoScrollVelocity = 0;
-          return;
-        }
-
-        if (autoScrollVelocity !== 0) {
-          window.scrollBy({ top: autoScrollVelocity, left: 0, behavior: 'auto' });
-
-          const draggingCard = document.querySelector('.kcard.is-dragging');
-          if (draggingCard && lastClientX !== null && lastClientY !== null) {
-            const elemBelow = document.elementFromPoint(lastClientX, lastClientY);
-            const body = elemBelow ? elemBelow.closest('.col-body') : null;
-            if (body && body.dataset.colId === draggingCard.dataset.colId) {
-              const afterElement = getDragAfterElement(body, lastClientY);
-              if (afterElement == null) {
-                body.appendChild(draggingCard);
-              } else {
-                body.insertBefore(draggingCard, afterElement);
-              }
-            }
-          }
-        }
-
-        autoScrollRafId = requestAnimationFrame(autoScrollLoop);
-      }
-
-      function startAutoScroll() {
-        if (!autoScrollRafId) {
-          autoScrollRafId = requestAnimationFrame(autoScrollLoop);
-        }
-      }
-
-      function stopAutoScroll() {
-        if (autoScrollRafId) {
-          cancelAnimationFrame(autoScrollRafId);
-          autoScrollRafId = null;
-        }
-        autoScrollVelocity = 0;
-        lastClientX = null;
-        lastClientY = null;
-      }
-
-      function handleColDragOver(e) {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        lastClientX = e.clientX;
-        lastClientY = e.clientY;
-        updateAutoScrollVelocity(e.clientY);
-
-        const body = e.currentTarget;
-        const draggingCard = document.querySelector('.kcard.is-dragging');
-        if (!draggingCard) return;
-
-        // 同一カテゴリ列内での並び替えを保証
-        if (draggingCard.dataset.colId !== body.dataset.colId) return;
-
-        body.classList.add('drag-over');
-
-        const afterElement = getDragAfterElement(body, e.clientY);
-        if (afterElement == null) {
-          body.appendChild(draggingCard);
-        } else {
-          body.insertBefore(draggingCard, afterElement);
-        }
-      }
-
-      function handleColDragLeave(e) {
-        if (!e.currentTarget.contains(e.relatedTarget)) {
-          e.currentTarget.classList.remove('drag-over');
-        }
-      }
-
-      function handleColDrop(e) {
-        e.preventDefault();
-        stopAutoScroll();
-        e.currentTarget.classList.remove('drag-over');
-        updateAndSaveOrder();
-        renderEmptyStates();
-      }
-
-      function getDragAfterElement(container, y) {
-        const draggableElements = [
-          ...container.querySelectorAll('.kcard:not(.is-dragging):not(.kcard-form)')
-        ];
-
-        return draggableElements.reduce((closest, child) => {
-          const box = child.getBoundingClientRect();
-          const offset = y - box.top - box.height / 2;
-          if (offset < 0 && offset > closest.offset) {
-            return { offset: offset, element: child };
-          } else {
-            return closest;
-          }
-        }, { offset: Number.NEGATIVE_INFINITY }).element;
-      }
-
-      window.addEventListener('dragover', e => {
-        if (!isDraggingActive) return;
-        lastClientX = e.clientX;
-        lastClientY = e.clientY;
-        updateAutoScrollVelocity(e.clientY);
-      });
-
-      window.addEventListener('dragend', () => {
-        stopAutoScroll();
-      });
-
-      window.addEventListener('drop', () => {
-        stopAutoScroll();
-      });
-
-      function deleteItem(itemId) {
-        // カスタム項目一覧から削除（該当する場合）
-        customItems = customItems.filter(it => it.id !== itemId);
-        saveCustomItems();
-
-        // 削除済みIDセットに記録
-        deletedItemIds.add(itemId);
-        saveDeletedItems();
-
-        // チェック状態・メモの削除
-        checkedSet.delete(itemId);
-        saveChecked();
-
-        delete memoMap[itemId];
-        saveMemoStorage(); // 空文字を再代入せず、安全に保存
-
-        delete itemEditsMap[itemId];
-        saveItemEdits();
-
-        itemOrderList = itemOrderList.filter(id => id !== itemId);
-        saveItemOrder();
-
-        buildBoard();
-      }
-
-      // ─────────────────────────────────────────────
-      // 共通インライン編集コンポーネント
-      // ─────────────────────────────────────────────
-
-      /**
-       * 要素をクリックした際にインライン編集入力欄を起動する共通関数
-       */
-      function setupInlineEditor({ triggerEl, containerEl, getValue, onSave, onRender, maxLength, placeholder, ariaLabel }) {
-        triggerEl.addEventListener('click', (e) => {
-          e.stopPropagation();
-
-          const input = document.createElement('input');
-          input.type = 'text';
-          input.className = triggerEl.className + '-input';
-          input.value = getValue();
-          input.maxLength = maxLength;
-          if (placeholder) input.placeholder = placeholder;
-          input.setAttribute('aria-label', ariaLabel);
-
-          let committed = false;
-          const finish = (save) => {
-            if (committed) return;
-            committed = true;
-            if (save) {
-              const val = input.value.trim();
-              onSave(val);
-            }
-            onRender(triggerEl);
-            if (input.parentNode === containerEl) {
-              containerEl.replaceChild(triggerEl, input);
-            }
-          };
-
-          input.addEventListener('mousedown', ev => ev.stopPropagation());
-          input.addEventListener('click', ev => ev.stopPropagation());
-
-          input.addEventListener('keydown', ev => {
-            if (ev.key === 'Enter') {
-              ev.preventDefault();
-              finish(true);
-            } else if (ev.key === 'Escape') {
-              ev.preventDefault();
-              finish(false);
-            }
-          });
-
-          input.addEventListener('blur', () => finish(true));
-
-          containerEl.replaceChild(input, triggerEl);
-          input.focus();
-          input.select();
-        });
-      }
-
-      function showAddCardForm(catId) {
-        const body = document.getElementById('col-' + catId + '-body');
-        if (!body) return;
-
-        const existingForm = document.querySelector('.kcard-form');
-        if (existingForm) {
-          const isSameCol = existingForm.closest('#col-' + catId + '-body');
-          if (isSameCol) {
-            const input = existingForm.querySelector('.kcard-input-title');
-            if (input) input.focus();
-            return;
-          }
-          existingForm.remove();
-        }
-
-        const formCard = document.createElement('div');
-        formCard.className = 'kcard kcard-form';
-
-        const topRow = document.createElement('div');
-        topRow.className = 'kcard-top';
-
-        const cbWrap = document.createElement('div');
-        cbWrap.className = 'kcard-checkbox is-dummy';
-        cbWrap.setAttribute('aria-hidden', 'true');
-        topRow.appendChild(cbWrap);
-
-        const titleInput = document.createElement('input');
-        titleInput.type = 'text';
-        titleInput.className = 'kcard-input-title';
-        titleInput.placeholder = '新しいタスク名を入力...';
-        titleInput.maxLength = 100;
-        titleInput.setAttribute('aria-label', '新しいタスク名');
-        topRow.appendChild(titleInput);
-        formCard.appendChild(topRow);
-
-        const metaRow = document.createElement('div');
-        metaRow.className = 'kcard-form-row';
-
-        const deadlineInput = document.createElement('input');
-        deadlineInput.type = 'text';
-        deadlineInput.className = 'kcard-input-deadline';
-        deadlineInput.placeholder = '締切（例: 毎日, 15時迄, 毎週金曜）';
-        deadlineInput.maxLength = 50;
-        deadlineInput.setAttribute('aria-label', '締切');
-        metaRow.appendChild(deadlineInput);
-        formCard.appendChild(metaRow);
-
-        const actionsRow = document.createElement('div');
-        actionsRow.className = 'kcard-form-actions';
-
-        const addBtn = document.createElement('button');
-        addBtn.type = 'button';
-        addBtn.className = 'btn-form-submit';
-        safeText(addBtn, '追加する');
-
-        const cancelBtn = document.createElement('button');
-        cancelBtn.type = 'button';
-        cancelBtn.className = 'btn-form-cancel';
-        safeText(cancelBtn, 'キャンセル');
-
-        actionsRow.appendChild(addBtn);
-        actionsRow.appendChild(cancelBtn);
-        formCard.appendChild(actionsRow);
-
-        const doSubmit = () => {
-          const titleVal = titleInput.value.trim();
-          if (!titleVal) {
-            titleInput.classList.add('is-invalid');
-            titleInput.focus();
-            return;
-          }
-          const deadlineVal = deadlineInput.value.trim();
-          addCustomItem(catId, titleVal, deadlineVal);
-        };
-
-        addBtn.addEventListener('click', doSubmit);
-        cancelBtn.addEventListener('click', () => {
-          formCard.remove();
-          renderEmptyStates();
-        });
-
-        titleInput.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            deadlineInput.focus();
-          } else if (e.key === 'Escape') {
-            formCard.remove();
-            renderEmptyStates();
-          }
-        });
-
-        deadlineInput.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            doSubmit();
-          } else if (e.key === 'Escape') {
-            formCard.remove();
-            renderEmptyStates();
-          }
-        });
-
-        const firstCard = body.querySelector('.kcard');
-        if (firstCard) {
-          body.insertBefore(formCard, firstCard);
-        } else {
-          const emptyEl = body.querySelector('.col-empty');
-          if (emptyEl) {
-            body.insertBefore(formCard, emptyEl);
-          } else {
-            body.appendChild(formCard);
-          }
-        }
-
-        titleInput.focus();
-      }
-
-      // ─────────────────────────────────────────────
-      // カンバン列生成
-      // ─────────────────────────────────────────────
-
-      /**
-       * カンバン列（section要素）を生成して返す
-       * @param {string} id    列の識別子（col-{id} / col-{id}-body で参照）
-       * @param {string} label 列見出しテキスト
-       * @param {boolean} isDone 提出済み列かどうか
-       * @returns {HTMLElement}
-       */
-      function createColumn(id, label, isDone) {
-        const section = document.createElement('section');
-        section.className = 'kanban-col col-' + truncate(id, 32) + (isDone ? ' col-done' : '');
-        section.id = 'col-' + id;
-        section.setAttribute('aria-label', label);
-
-        const header = document.createElement('div');
-        header.className = 'col-header';
-
-        const headerLeft = document.createElement('div');
-        headerLeft.className = 'col-header-left';
-
-        const dot = document.createElement('span');
-        dot.className = 'col-dot';
-        dot.setAttribute('aria-hidden', 'true');
-
-        const titleSpan = document.createElement('span');
-        titleSpan.className = 'col-title';
-        safeText(titleSpan, label);
-
-        headerLeft.appendChild(dot);
-        headerLeft.appendChild(titleSpan);
-        header.appendChild(headerLeft);
-
-        if (isDone) {
-          const clearBtn = document.createElement('button');
-          clearBtn.className = 'btn-clear';
-          clearBtn.id = 'btn-clear';
-          clearBtn.setAttribute('aria-label', '提出済みタスクをクリア');
-          clearBtn.title = '提出済みのすべてのタスクを未提出に戻します';
-          safeText(clearBtn, 'クリア');
-          clearBtn.addEventListener('click', onClearAll);
-          header.appendChild(clearBtn);
-        } else {
-          const addBtn = document.createElement('button');
-          addBtn.className = 'btn-add-item';
-          addBtn.id = 'btn-add-' + id;
-          addBtn.setAttribute('aria-label', `${label}に項目を追加`);
-          addBtn.title = `${label}に項目を追加`;
-          safeText(addBtn, '＋');
-          addBtn.addEventListener('click', () => showAddCardForm(id));
-          header.appendChild(addBtn);
-        }
-
-        section.appendChild(header);
-
-        const body = document.createElement('div');
-        body.className = 'col-body';
-        body.id = 'col-' + id + '-body';
-        body.setAttribute('role', 'list');
-        body.dataset.colId = id;
-
-        // 並び替え用ドラッグ＆ドロップイベント
-        body.addEventListener('dragover', handleColDragOver);
-        body.addEventListener('dragleave', handleColDragLeave);
-        body.addEventListener('drop', handleColDrop);
-
-        section.appendChild(body);
-
-        return section;
-      }
-
-      // ─────────────────────────────────────────────
-      // カンバンボード描画
-      // ─────────────────────────────────────────────
-
-      function buildBoard() {
-        const root = document.getElementById('kanban-root');
-        while (root.firstChild) root.removeChild(root.firstChild);
-
-        const cats = CHECKLIST_CONFIG.categories;
-        const numCols = cats.length + 1; // カテゴリ列 + 提出済み列
-
-        // グリッド列数を動的設定
-        root.style.gridTemplateColumns = `repeat(${numCols}, 1fr)`;
-
-        // カテゴリ別列を生成
-        cats.forEach(cat => {
-          const label = (cat.icon ? cat.icon + ' ' : '') + cat.label;
-          root.appendChild(createColumn(cat.id, label, false));
-        });
-
-        // 提出済み列
-        root.appendChild(createColumn('done', '完了済みタスク', true));
-
-        // カードを振り分け
-        getAllItems().forEach(item => {
-          const card = buildCard(item, false);
-          if (checkedSet.has(item.id)) {
-            document.getElementById('col-done-body').appendChild(card);
-          } else {
-            const colBody = document.getElementById('col-' + item.category + '-body');
-            const target = colBody || document.getElementById('col-' + cats[0].id + '-body');
-            if (target) target.appendChild(card);
-          }
-        });
-
-        renderEmptyStates();
-      }
-
-      // ─────────────────────────────────────────────
-      // カード生成
-      // ─────────────────────────────────────────────
-
-      /**
-       * @param {{ id:string, label:string, deadline:string, category:string, note:string }} item
-       * @param {boolean} animate
-       * @returns {HTMLElement}
-       */
-      function buildCard(item, animate) {
-        const safeId = truncate(item.id.replace(/[^a-zA-Z0-9_-]/g, ''), 64);
-        const isDone = checkedSet.has(item.id);
-
-        const card = document.createElement('div');
-        card.className = 'kcard' + (isDone ? ' is-done' : '') + (animate ? ' entering' : '');
-        card.id = 'card-' + safeId;
-        card.setAttribute('role', 'listitem');
-        card.setAttribute('tabindex', '0');
-        card.setAttribute('draggable', 'true');
-        card.dataset.itemId = item.id;
-        card.dataset.colId = isDone ? 'done' : item.category;
-        card.setAttribute('aria-label', item.label + (isDone ? '（提出済み）' : '（未提出）') + '。Altと矢印キーで並び替え可能');
-
-        // Top row
-        const topRow = document.createElement('div');
-        topRow.className = 'kcard-top';
-
-        // Drag handle (グリップアイコン)
-        const dragHandle = document.createElement('span');
-        dragHandle.className = 'kcard-drag-handle';
-        dragHandle.setAttribute('aria-hidden', 'true');
-        dragHandle.title = 'ドラッグして並び替え（Alt + ↑/↓でも移動可能）';
-
-        const dragSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        dragSvg.setAttribute('viewBox', '0 0 10 16');
-        dragSvg.setAttribute('width', '10');
-        dragSvg.setAttribute('height', '16');
-
-        const coords = [[2, 3], [8, 3], [2, 8], [8, 8], [2, 13], [8, 13]];
-        coords.forEach(([cx, cy]) => {
-          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-          circle.setAttribute('cx', String(cx));
-          circle.setAttribute('cy', String(cy));
-          circle.setAttribute('r', '1.5');
-          circle.setAttribute('fill', 'currentColor');
-          dragSvg.appendChild(circle);
-        });
-        dragHandle.appendChild(dragSvg);
-        topRow.appendChild(dragHandle);
-
-        // Checkbox
-        const cbWrap = document.createElement('div');
-        cbWrap.className = 'kcard-checkbox';
-        cbWrap.setAttribute('aria-hidden', 'true');
-
-        const svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svgEl.setAttribute('viewBox', '0 0 10 10');
-        const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-        poly.setAttribute('points', '1.5,5.5 4,8 8.5,2');
-        svgEl.appendChild(poly);
-        cbWrap.appendChild(svgEl);
-
-        // Label (クリックでインライン編集)
-        const labelEl = document.createElement('span');
-        labelEl.className = 'kcard-label';
-        labelEl.title = 'クリックしてタスク名を編集';
-        safeText(labelEl, item.label);
-
-        setupInlineEditor({
-          triggerEl: labelEl,
-          containerEl: topRow,
-          getValue: () => item.label,
-          maxLength: 100,
-          placeholder: 'タスク名を入力...',
-          ariaLabel: 'タスク名を編集',
-          onSave: (val) => {
-            if (val && val !== item.label) {
-              updateItemField(item.id, 'label', val);
-              item.label = val;
-              card.setAttribute('aria-label', val + (isDone ? '（提出済み）' : '（未提出）') + '。Altと矢印キーで並び替え可能');
-            }
-          },
-          onRender: (el) => safeText(el, item.label)
-        });
-
-        topRow.appendChild(cbWrap);
-        topRow.appendChild(labelEl);
-
-        // すべてのタスクに削除ボタンを付与
-        const delBtn = document.createElement('button');
-        delBtn.className = 'btn-card-delete';
-        delBtn.setAttribute('aria-label', `${item.label}を削除`);
-        delBtn.title = 'タスクを削除';
-        safeText(delBtn, '×');
-        delBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          if (window.confirm(`タスク「${item.label}」を削除しますか？`)) {
-            deleteItem(item.id);
-          }
-        });
-        topRow.appendChild(delBtn);
-
-        card.appendChild(topRow);
-
-        // Meta row
-        const metaRow = document.createElement('div');
-        metaRow.className = 'kcard-meta';
-
-        // Deadline Badge (クリックでインライン編集)
-        const deadlineBadge = document.createElement('span');
-        const updateDeadlineBadgeClass = (el, val) => {
-          const hasVal = Boolean(val && val.trim());
-          el.className = 'badge-deadline' + (hasVal ? '' : ' is-empty');
-          safeText(el, hasVal ? val : '+ 締切設定');
-        };
-        updateDeadlineBadgeClass(deadlineBadge, item.deadline);
-        deadlineBadge.title = 'クリックして締切を編集';
-
-        setupInlineEditor({
-          triggerEl: deadlineBadge,
-          containerEl: metaRow,
-          getValue: () => item.deadline || '',
-          maxLength: 50,
-          placeholder: '例: 毎日, 15時迄',
-          ariaLabel: '締切を編集',
-          onSave: (val) => {
-            if (val !== (item.deadline || '')) {
-              updateItemField(item.id, 'deadline', val);
-              item.deadline = val;
-            }
-          },
-          onRender: (el) => updateDeadlineBadgeClass(el, item.deadline)
-        });
-
-        metaRow.appendChild(deadlineBadge);
-
-        const catConfig = CHECKLIST_CONFIG.categories.find(c => c.id === item.category);
-        if (catConfig) {
-          const catPill = document.createElement('span');
-          catPill.className = 'badge-cat ' + truncate(item.category, 32);
-          safeText(catPill, catConfig.label);
-          metaRow.appendChild(catPill);
-        }
-
-        card.appendChild(metaRow);
-
-        // Memo row
-        const memoWrap = document.createElement('div');
-        memoWrap.className = 'kcard-memo-wrap';
-
-        const memoInput = document.createElement('input');
-        memoInput.type = 'text';
-        memoInput.className = 'kcard-memo';
-        memoInput.id = 'memo-' + safeId;
-        memoInput.setAttribute('placeholder', 'メモ（提出日時・進捗など）');
-        memoInput.setAttribute('maxlength', '200');
-        memoInput.setAttribute('aria-label', item.label + ' のメモ');
-        memoInput.value = truncate(memoMap[item.id] || item.note || '', 200);
-
-        memoWrap.appendChild(memoInput);
-        card.appendChild(memoWrap);
-
-        // 子要素のドラッグ誤発火防止
-        cbWrap.setAttribute('draggable', 'false');
-        memoInput.setAttribute('draggable', 'false');
-        delBtn.setAttribute('draggable', 'false');
-
-        cbWrap.addEventListener('mousedown', e => e.stopPropagation());
-        memoInput.addEventListener('mousedown', e => e.stopPropagation());
-        delBtn.addEventListener('mousedown', e => e.stopPropagation());
-
-        // ドラッグイベント
-        card.addEventListener('dragstart', function (e) {
-          isDraggingActive = true;
-          e.dataTransfer.setData('text/plain', item.id);
-          e.dataTransfer.effectAllowed = 'move';
-          this.classList.add('is-dragging');
-          startAutoScroll();
-        });
-
-        card.addEventListener('dragend', function () {
-          this.classList.remove('is-dragging');
-          stopAutoScroll();
-          setTimeout(() => {
-            isDraggingActive = false;
-          }, 60);
-          document.querySelectorAll('.col-body').forEach(b => b.classList.remove('drag-over'));
-          updateAndSaveOrder();
-        });
-
-        // クリックとキーボード操作
-        card.addEventListener('click', () => {
-          if (isDraggingActive) return;
-          toggleCard(item.id);
-        });
-
-        memoInput.addEventListener('click', e => e.stopPropagation());
-
-        card.addEventListener('keydown', e => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            if (e.target === card) {
-              e.preventDefault();
-              toggleCard(item.id);
-            }
-          } else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-            e.preventDefault();
-            moveCardByStep(item.id, e.key === 'ArrowUp' ? -1 : 1);
-          }
-        });
-
-        memoInput.addEventListener('change', () => saveMemo(item.id, memoInput.value));
-        memoInput.addEventListener('blur', () => saveMemo(item.id, memoInput.value));
-
-        return card;
-      }
-
-      // ─────────────────────────────────────────────
-      // チェック切り替え（アニメーション付き）
-      // ─────────────────────────────────────────────
-
-      /**
-       * チェック状態を切り替える。
-       * @param {string} itemId
-       */
-      function toggleCard(itemId) {
-        const item = getAllItems().find(it => it.id === itemId);
-        if (!item) return;
-
-        const nowDone = !checkedSet.has(itemId);
-        const safeId = itemId.replace(/[^a-zA-Z0-9_-]/g, '');
-        const existing = document.getElementById('card-' + safeId);
-
-        if (nowDone) {
-          // ── チェックを入れる ──
-          checkedSet.add(itemId);
-          saveChecked();
-
-          if (existing) {
-            existing.classList.add('is-checking');
-            existing.style.pointerEvents = 'none';
-          }
-
-          setTimeout(() => {
-            if (existing) existing.remove();
-
-            const newCard = buildCard(item, true);
-            const doneBody = document.getElementById('col-done-body');
-            if (doneBody) doneBody.appendChild(newCard);
-
-            requestAnimationFrame(() => {
-              setTimeout(() => newCard.classList.remove('entering'), 300);
-            });
-
-            renderEmptyStates();
-          }, CHECK_ANIM_MS);
-
-        } else {
-          // ── チェックを外す ──
-          checkedSet.delete(itemId);
-          saveChecked();
-
-          if (existing) existing.remove();
-
-          const newCard = buildCard(item, true);
-          const catColId = 'col-' + item.category + '-body';
-          const catBody = document.getElementById(catColId);
-          const fallback = document.getElementById(
-            'col-' + CHECKLIST_CONFIG.categories[0].id + '-body'
-          );
-          const targetBody = catBody || fallback;
-
-          if (targetBody) insertCardInOrder(newCard, itemId, targetBody);
-
-          requestAnimationFrame(() => {
-            setTimeout(() => newCard.classList.remove('entering'), 300);
-          });
-
-          renderEmptyStates();
-        }
-      }
-
-      /**
-       * configおよび保存順序を維持してカードを挿入する (O(N) 最適化)
-       * @param {HTMLElement} card
-       * @param {string} itemId
-       * @param {HTMLElement} body
-       */
-      function insertCardInOrder(card, itemId, body) {
-        const allItems = getAllItems();
-        const allIds = allItems.map(it => it.id);
-        const targetIdx = allIds.indexOf(itemId);
-        const existing = body.querySelectorAll('.kcard');
-
-        let inserted = false;
-        for (const el of existing) {
-          const elId = el.dataset.itemId;
-          if (elId && allIds.indexOf(elId) > targetIdx) {
-            body.insertBefore(card, el);
-            inserted = true;
-            break;
-          }
-        }
-        if (!inserted) body.appendChild(card);
-      }
-
-      // ─────────────────────────────────────────────
-      // エンプティステート共通処理
-      // ─────────────────────────────────────────────
-
-      function setColumnEmptyState(body, message) {
-        const old = body.querySelector('.col-empty');
-        if (old) old.remove();
-        if (!body.querySelector('.kcard')) {
-          const div = document.createElement('div');
-          div.className = 'col-empty';
-          const span = document.createElement('span');
-          safeText(span, message);
-          div.appendChild(span);
-          body.appendChild(div);
-        }
-      }
-
-      function renderEmptyStates() {
-        // カテゴリ列
-        CHECKLIST_CONFIG.categories.forEach(cat => {
-          const body = document.getElementById('col-' + cat.id + '-body');
-          if (body) {
-            setColumnEmptyState(body, 'すべて完了');
-          }
-        });
-
-        // 提出済み列
-        const doneBody = document.getElementById('col-done-body');
-        if (doneBody) {
-          setColumnEmptyState(doneBody, '完了済みのタスクはありません');
-        }
-      }
-
-      // ─────────────────────────────────────────────
-      // 提出済みクリア（チェック状態のみ解除し未提出に戻す）
-      // ─────────────────────────────────────────────
-
-      function onClearAll() {
-        if (checkedSet.size === 0) return;
-        checkedSet.clear();
-        saveChecked();
-        buildBoard();
-      }
-
-      // ─────────────────────────────────────────────
-      // 初期値リセット（現在の定義状態へ完全復元）
-      // ─────────────────────────────────────────────
-
-      function onResetToDefault() {
-        if (!window.confirm('すべてのタスク、順序、編集内容を初期状態（デフォルト）に戻しますか？\nこの操作は取り消せません。')) {
-          return;
-        }
-
-        checkedSet.clear();
-        memoMap = Object.create(null);
-        customItems = [];
-        deletedItemIds.clear();
-        itemEditsMap = Object.create(null);
-        itemOrderList = [];
-
-        removeStorageItem(LS_CHECKED);
-        removeStorageItem(LS_MEMO);
-        removeStorageItem(LS_CUSTOM_ITEMS);
-        removeStorageItem(LS_DELETED_ITEMS);
-        removeStorageItem(LS_EDITS);
-        removeStorageItem(LS_ORDER);
-
-        buildBoard();
-      }
-
-      // ─────────────────────────────────────────────
-      // 初期化
-      // ─────────────────────────────────────────────
-
-      function init() {
-        if (typeof CHECKLIST_CONFIG === 'undefined') {
-          const errEl = document.getElementById('config-error');
-          errEl.style.display = 'block';
-          safeText(errEl,
-            'エラー: 設定データ（CHECKLIST_CONFIG）が定義されていません。\n' +
-            'HTML内の設定データブロック（CHECKLIST_CONFIG）が正しく記載されているか確認してください。'
-          );
-          return;
-        }
-
-        const errors = validateConfig();
-        if (errors.length > 0) {
-          const errEl = document.getElementById('config-error');
-          errEl.style.display = 'block';
-          safeText(errEl, '設定ファイルにエラーがあります:\n\n' + errors.join('\n'));
-          return;
-        }
-
-        const titleText = truncate(String(CHECKLIST_CONFIG.appTitle || 'checklist'), 80);
-        document.title = titleText;
-        safeText(document.getElementById('app-title-heading'), titleText);
-
-        const footerText = truncate(String(CHECKLIST_CONFIG.footerText || ''), 300);
-        if (footerText) {
-          safeText(document.getElementById('app-footer'), footerText);
-        }
-
-        loadState();
-        buildBoard();
-
-        const resetBtn = document.getElementById('btn-reset');
-        if (resetBtn) {
-          resetBtn.addEventListener('click', onResetToDefault);
-        }
-      }
-
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-      } else {
-        init();
-      }
-
-    }());
-  </script>
-</body>
-
+        {
+          id: "daily_shift_plan",
+          label: "日別シフト計画表確認",
+          deadline: "毎日",
+          category: "daily",
+          note: ""
+        },
+        {
+          id: "manufacturing_plan",
+          label: "製造計画表確認(格納)",
+          deadline: "毎日",
+          category: "daily",
+          note: ""
+        },
+        {
+          id: "quality_abnormal_report",
+          label: "品質異常報告書",
+          deadline: "随時",
+          category: "daily",
+          note: ""
+        },
+        {
+          id: "customer_voice",
+          label: "お客様の声",
+          deadline: "随時",
+          category: "daily",
+          note: ""
+        },
+        {
+          id: "priority_item_improvement_image",
+          label: "重点商品改善画像",
+          deadline: "13時迄",
+          category: "daily",
+          note: ""
+        },
+        {
+          id: "store_manager_schedule",
+          label: "店長行動スケジュール",
+          deadline: "毎週月曜日",
+          category: "weekly",
+          note: ""
+        },
+        {
+          id: "weekly_performance",
+          label: "週間業績改善報告書",
+          deadline: "毎週日曜日 17時〆",
+          category: "weekly",
+          note: ""
+        },
+        {
+          id: "flyer_image",
+          label: "チラシ掲載商品売場画像",
+          deadline: "毎週土曜日",
+          category: "weekly",
+          note: ""
+        },
+        {
+          id: "monthly_report",
+          label: "月次報告書",
+          deadline: "7日頃（案内）〆",
+          category: "monthly",
+          note: ""
+        },
+        {
+          id: "abnormal_report",
+          label: "異常値報告書（中間/期末）",
+          deadline: "19日 / 4日〆",
+          category: "monthly",
+          note: ""
+        },
+        {
+          id: "daily_budget",
+          label: "日割り予算",
+          deadline: "毎月20日〆",
+          category: "monthly",
+          note: ""
+        },
+        {
+          id: "interim_report",
+          label: "中間棚卸報告書",
+          deadline: "21日頃（案内）〆",
+          category: "monthly",
+          note: ""
+        },
+        {
+          id: "5s_improvement",
+          label: "5S改善項目一覧",
+          deadline: "月末〆",
+          category: "monthly",
+          note: ""
+        },
+        {
+          id: "end_plan",
+          label: "エンド計画表",
+          deadline: "月末〆",
+          category: "monthly",
+          note: ""
+        },
+        {
+          id: "expiry_check",
+          label: "賞味期限チェック表",
+          deadline: "月末〆",
+          category: "monthly",
+          note: ""
+        },
+        {
+          id: "out_of_stock_checklist",
+          label: "欠品チェックリスト",
+          deadline: "月末〆",
+          category: "monthly",
+          note: ""
+        },
+      ]
+    };
+  </script>
+
+  <!-- アプリロジック -->
+  <script>
+    (function () {
+      'use strict';
+
+      // ─────────────────────────────────────────────
+      // 定数
+      // ─────────────────────────────────────────────
+      const LS_PREFIX = 'checklist_v1_';
+      const LS_CHECKED = LS_PREFIX + 'checked';
+      const LS_MEMO = LS_PREFIX + 'memo';
+      const LS_CUSTOM_ITEMS = LS_PREFIX + 'custom_items';
+      const LS_DELETED_ITEMS = LS_PREFIX + 'deleted_items';
+      const LS_ORDER = LS_PREFIX + 'order';
+      const LS_EDITS = LS_PREFIX + 'edits';
+
+      /** カードが移動するまでのチェックマーク表示時間 (ms) */
+      const CHECK_ANIM_MS = 300;
+
+      // ─────────────────────────────────────────────
+      // ユーティリティ & ストレージヘルパー
+      // ─────────────────────────────────────────────
+
+      /** XSS防止: textContent で安全にテキストを設定 */
+      function safeText(el, text) {
+        el.textContent = String(text ?? '');
+      }
+
+      /** 文字列を指定長に切り詰める */
+      function truncate(str, max) {
+        if (typeof str !== 'string') return '';
+        return str.length > max ? str.slice(0, max) : str;
+      }
+
+      /** 安全な localStorage 読み込み */
+      function getStorageJson(key, fallback) {
+        try {
+          const raw = localStorage.getItem(key);
+          if (!raw) return fallback;
+          const parsed = JSON.parse(raw);
+          return parsed !== null && parsed !== undefined ? parsed : fallback;
+        } catch (e) {
+          console.warn(`[checklist] localStorage 読み込み失敗 (${key}):`, e.message);
+          return fallback;
+        }
+      }
+
+      /** 安全な localStorage 保存 */
+      function setStorageJson(key, val) {
+        try {
+          localStorage.setItem(key, JSON.stringify(val));
+        } catch (e) {
+          console.warn(`[checklist] localStorage 保存失敗 (${key}):`, e.message);
+        }
+      }
+
+      /** 安全な localStorage 削除 */
+      function removeStorageItem(key) {
+        try {
+          localStorage.removeItem(key);
+        } catch (e) {
+          console.warn(`[checklist] localStorage 削除失敗 (${key}):`, e.message);
+        }
+      }
+
+      // ─────────────────────────────────────────────
+      // 設定バリデーション
+      // ─────────────────────────────────────────────
+
+      function validateConfig() {
+        const errors = [];
+        if (typeof CHECKLIST_CONFIG !== 'object' || CHECKLIST_CONFIG === null) {
+          errors.push('CHECKLIST_CONFIG が定義されていません。HTML内の設定データブロックを確認してください。');
+          return errors;
+        }
+        if (!Array.isArray(CHECKLIST_CONFIG.items) || CHECKLIST_CONFIG.items.length === 0) {
+          errors.push('CHECKLIST_CONFIG.items が空または未定義です。');
+        }
+        if (!Array.isArray(CHECKLIST_CONFIG.categories) || CHECKLIST_CONFIG.categories.length === 0) {
+          errors.push('CHECKLIST_CONFIG.categories が空または未定義です。');
+        }
+        const ids = new Set();
+        (CHECKLIST_CONFIG.items || []).forEach((item, idx) => {
+          if (!item.id || typeof item.id !== 'string') {
+            errors.push(`items[${idx}].id が未設定または文字列ではありません。`);
+          } else if (ids.has(item.id)) {
+            errors.push(`items の id "${item.id}" が重複しています。`);
+          } else {
+            ids.add(item.id);
+          }
+          if (!item.label || typeof item.label !== 'string') {
+            errors.push(`items[${idx}].label が未設定です。`);
+          }
+        });
+        return errors;
+      }
+
+      // ─────────────────────────────────────────────
+      // 状態管理
+      // ─────────────────────────────────────────────
+
+      /** @type {Set<string>} チェック済みアイテムID集合 */
+      let checkedSet = new Set();
+      /** @type {Object<string,string>} アイテムID別メモマップ */
+      let memoMap = Object.create(null);
+      /** @type {Array<Object>} ユーザー追加カスタムタスク */
+      let customItems = [];
+      /** @type {Set<string>} 削除済みタスクID集合 */
+      let deletedItemIds = new Set();
+      /** @type {Array<string>} 並び替え順序リスト */
+      let itemOrderList = [];
+      /** @type {Object<string, {label?: string, deadline?: string}>} 編集済み差分マップ */
+      let itemEditsMap = Object.create(null);
+
+      function getAllItems() {
+        const rawList = [...CHECKLIST_CONFIG.items, ...customItems].filter(
+          item => !deletedItemIds.has(item.id)
+        ).map(item => {
+          const edit = itemEditsMap[item.id];
+          if (edit) {
+            return {
+              ...item,
+              label: edit.label !== undefined ? edit.label : item.label,
+              deadline: edit.deadline !== undefined ? edit.deadline : item.deadline
+            };
+          }
+          return item;
+        });
+
+        if (!itemOrderList || itemOrderList.length === 0) return rawList;
+
+        const orderMap = new Map();
+        itemOrderList.forEach((id, idx) => orderMap.set(id, idx));
+
+        return rawList.sort((a, b) => {
+          const idxA = orderMap.has(a.id) ? orderMap.get(a.id) : 9999;
+          const idxB = orderMap.has(b.id) ? orderMap.get(b.id) : 9999;
+          return idxA - idxB;
+        });
+      }
+
+      function loadState() {
+        const rawChecked = getStorageJson(LS_CHECKED, []);
+        if (Array.isArray(rawChecked)) {
+          checkedSet = new Set(rawChecked.filter(id => typeof id === 'string'));
+        }
+
+        const rawMemo = getStorageJson(LS_MEMO, {});
+        if (rawMemo && typeof rawMemo === 'object' && !Array.isArray(rawMemo)) {
+          const cleanMap = Object.create(null);
+          for (const [k, v] of Object.entries(rawMemo)) {
+            if (typeof k === 'string' && typeof v === 'string') {
+              cleanMap[k] = truncate(v, 200);
+            }
+          }
+          memoMap = cleanMap;
+        }
+
+        const rawCustom = getStorageJson(LS_CUSTOM_ITEMS, []);
+        if (Array.isArray(rawCustom)) {
+          customItems = rawCustom.filter(it =>
+            it && typeof it === 'object' &&
+            typeof it.id === 'string' &&
+            typeof it.label === 'string' &&
+            typeof it.category === 'string'
+          ).map(it => ({
+            id: truncate(it.id.replace(/[^a-zA-Z0-9_-]/g, ''), 64),
+            label: truncate(String(it.label), 100),
+            deadline: truncate(String(it.deadline || ''), 50),
+            category: truncate(String(it.category), 32),
+            note: truncate(String(it.note || ''), 200),
+            isCustom: true
+          }));
+        }
+
+        const rawDeleted = getStorageJson(LS_DELETED_ITEMS, []);
+        if (Array.isArray(rawDeleted)) {
+          deletedItemIds = new Set(rawDeleted.filter(id => typeof id === 'string'));
+        }
+
+        const rawOrder = getStorageJson(LS_ORDER, []);
+        if (Array.isArray(rawOrder)) {
+          itemOrderList = rawOrder.filter(id => typeof id === 'string');
+        }
+
+        const rawEdits = getStorageJson(LS_EDITS, {});
+        if (rawEdits && typeof rawEdits === 'object' && !Array.isArray(rawEdits)) {
+          const cleanEdits = Object.create(null);
+          for (const [k, v] of Object.entries(rawEdits)) {
+            if (typeof k === 'string' && v && typeof v === 'object') {
+              cleanEdits[k] = {
+                label: typeof v.label === 'string' ? truncate(v.label, 100) : undefined,
+                deadline: typeof v.deadline === 'string' ? truncate(v.deadline, 50) : undefined,
+              };
+            }
+          }
+          itemEditsMap = cleanEdits;
+        }
+      }
+
+      function saveChecked() {
+        setStorageJson(LS_CHECKED, [...checkedSet]);
+      }
+
+      function saveMemoStorage() {
+        setStorageJson(LS_MEMO, memoMap);
+      }
+
+      function saveMemo(id, value) {
+        memoMap[id] = value;
+        saveMemoStorage();
+      }
+
+      function saveCustomItems() {
+        setStorageJson(LS_CUSTOM_ITEMS, customItems);
+      }
+
+      function addCustomItem(category, label, deadline) {
+        const id = 'custom_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+        const newItem = {
+          id: id,
+          label: truncate(label.trim(), 100),
+          deadline: truncate(deadline.trim(), 50),
+          category: category,
+          note: '',
+          isCustom: true
+        };
+
+        // 既存アイテム一覧とそのID順序を取得
+        const currentItems = getAllItems();
+        const currentIds = currentItems.map(it => it.id);
+
+        // 各列で追加した項目を一番上に表示するため、挿入インデックスを特定
+        // 1. 同一カテゴリの未完了アイテムがあれば、その先頭アイテムの直前に挿入
+        let targetIndex = currentItems.findIndex(it => it.category === category && !checkedSet.has(it.id));
+
+        // 2. 未完了アイテムがなければ、同一カテゴリのアイテム（完了済み含む）の先頭の直前に挿入
+        if (targetIndex === -1) {
+          targetIndex = currentItems.findIndex(it => it.category === category);
+        }
+
+        // 3. カテゴリ内のアイテムが存在しない場合、カテゴリ定義の順序に準じて後続カテゴリの先頭を探す
+        if (targetIndex === -1) {
+          const cats = (typeof CHECKLIST_CONFIG !== 'undefined' && CHECKLIST_CONFIG.categories) || [];
+          const catIdx = cats.findIndex(c => c.id === category);
+          if (catIdx !== -1) {
+            for (let i = catIdx + 1; i < cats.length; i++) {
+              const nextCatId = cats[i].id;
+              const nextIdx = currentItems.findIndex(it => it.category === nextCatId);
+              if (nextIdx !== -1) {
+                targetIndex = nextIdx;
+                break;
+              }
+            }
+          }
+        }
+
+        if (targetIndex !== -1) {
+          currentIds.splice(targetIndex, 0, id);
+        } else {
+          currentIds.unshift(id);
+        }
+
+        // customItems 配列でも先頭に追加
+        customItems.unshift(newItem);
+        saveCustomItems();
+
+        // 順序リストを更新して保存
+        itemOrderList = currentIds;
+        saveItemOrder();
+
+        buildBoard();
+      }
+
+      function saveDeletedItems() {
+        setStorageJson(LS_DELETED_ITEMS, [...deletedItemIds]);
+      }
+
+      function saveItemOrder() {
+        setStorageJson(LS_ORDER, itemOrderList);
+      }
+
+      function saveItemEdits() {
+        setStorageJson(LS_EDITS, itemEditsMap);
+      }
+
+      /** タスク名または締切のインライン編集を永続化 */
+      function updateItemField(itemId, field, value) {
+        const cleanVal = truncate(value.trim(), field === 'label' ? 100 : 50);
+
+        // カスタムアイテムの場合はオブジェクト本体を直接更新
+        const cItem = customItems.find(it => it.id === itemId);
+        if (cItem) {
+          cItem[field] = cleanVal;
+          saveCustomItems();
+        }
+
+        // デフォルトアイテムも含め編集差分マップに記録
+        if (!itemEditsMap[itemId]) {
+          itemEditsMap[itemId] = {};
+        }
+        itemEditsMap[itemId][field] = cleanVal;
+        saveItemEdits();
+      }
+
+      /** ボード上の現DOM要素の順序を収集して保存 (O(N) 最適化) */
+      function updateAndSaveOrder() {
+        const cards = document.querySelectorAll('.kanban-root .kcard:not(.kcard-form)');
+        const newOrder = [];
+        cards.forEach(card => {
+          const itemId = card.dataset.itemId;
+          if (itemId && !newOrder.includes(itemId)) {
+            newOrder.push(itemId);
+          }
+        });
+
+        // 提出済み等にある未表示アイテムの順序も末尾に保持
+        getAllItems().forEach(item => {
+          if (!newOrder.includes(item.id)) {
+            newOrder.push(item.id);
+          }
+        });
+
+        itemOrderList = newOrder;
+        saveItemOrder();
+      }
+
+      /** キーボード操作によるカード移動（Alt + ↑/↓） */
+      function moveCardByStep(itemId, step) {
+        const item = getAllItems().find(it => it.id === itemId);
+        if (!item) return;
+
+        const isDone = checkedSet.has(itemId);
+        const colId = isDone ? 'col-done-body' : 'col-' + item.category + '-body';
+        const body = document.getElementById(colId);
+        if (!body) return;
+
+        const cards = [...body.querySelectorAll('.kcard:not(.kcard-form)')];
+        const cardIds = cards.map(c => c.dataset.itemId).filter(Boolean);
+
+        const curIdx = cardIds.indexOf(itemId);
+        if (curIdx === -1) return;
+
+        const targetIdx = curIdx + step;
+        if (targetIdx < 0 || targetIdx >= cardIds.length) return;
+
+        // 列内の位置を入れ替え
+        cardIds.splice(curIdx, 1);
+        cardIds.splice(targetIdx, 0, itemId);
+
+        const remaining = itemOrderList.filter(id => !cardIds.includes(id));
+        itemOrderList = [...cardIds, ...remaining];
+        saveItemOrder();
+
+        buildBoard();
+
+        const safeId = itemId.replace(/[^a-zA-Z0-9_-]/g, '');
+        const movedCard = document.getElementById('card-' + safeId);
+        if (movedCard) movedCard.focus();
+      }
+
+      // ── ドラッグ＆ドロップ用イベントハンドラ＆オートスクロール ──
+      let isDraggingActive = false;
+      let autoScrollRafId = null;
+      let autoScrollVelocity = 0;
+      let lastClientX = null;
+      let lastClientY = null;
+
+      /** 画面端へのドラッグ時にスクロール速度を算出 */
+      function updateAutoScrollVelocity(clientY) {
+        const topThreshold = 140; // ヘッダー高さを考慮した上端検知ゾーン (px)
+        const bottomThreshold = window.innerHeight - 100; // 下端検知ゾーン (px)
+        const maxSpeed = 22; // 最大スクロール速度 (px/frame)
+
+        if (clientY < topThreshold) {
+          const ratio = (topThreshold - Math.max(0, clientY)) / topThreshold;
+          autoScrollVelocity = -Math.max(4, Math.round(ratio * maxSpeed));
+        } else if (clientY > bottomThreshold) {
+          const ratio = (clientY - bottomThreshold) / 100;
+          autoScrollVelocity = Math.max(4, Math.round(Math.min(1, ratio) * maxSpeed));
+        } else {
+          autoScrollVelocity = 0;
+        }
+      }
+
+      /** requestAnimationFrame によるスムーズな自動スクロールループ */
+      function autoScrollLoop() {
+        if (!isDraggingActive) {
+          autoScrollRafId = null;
+          autoScrollVelocity = 0;
+          return;
+        }
+
+        if (autoScrollVelocity !== 0) {
+          window.scrollBy({ top: autoScrollVelocity, left: 0, behavior: 'auto' });
+
+          const draggingCard = document.querySelector('.kcard.is-dragging');
+          if (draggingCard && lastClientX !== null && lastClientY !== null) {
+            const elemBelow = document.elementFromPoint(lastClientX, lastClientY);
+            const body = elemBelow ? elemBelow.closest('.col-body') : null;
+            if (body && body.dataset.colId === draggingCard.dataset.colId) {
+              const afterElement = getDragAfterElement(body, lastClientY);
+              if (afterElement == null) {
+                body.appendChild(draggingCard);
+              } else {
+                body.insertBefore(draggingCard, afterElement);
+              }
+            }
+          }
+        }
+
+        autoScrollRafId = requestAnimationFrame(autoScrollLoop);
+      }
+
+      function startAutoScroll() {
+        if (!autoScrollRafId) {
+          autoScrollRafId = requestAnimationFrame(autoScrollLoop);
+        }
+      }
+
+      function stopAutoScroll() {
+        if (autoScrollRafId) {
+          cancelAnimationFrame(autoScrollRafId);
+          autoScrollRafId = null;
+        }
+        autoScrollVelocity = 0;
+        lastClientX = null;
+        lastClientY = null;
+      }
+
+      function handleColDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        lastClientX = e.clientX;
+        lastClientY = e.clientY;
+        updateAutoScrollVelocity(e.clientY);
+
+        const body = e.currentTarget;
+        const draggingCard = document.querySelector('.kcard.is-dragging');
+        if (!draggingCard) return;
+
+        // 同一カテゴリ列内での並び替えを保証
+        if (draggingCard.dataset.colId !== body.dataset.colId) return;
+
+        body.classList.add('drag-over');
+
+        const afterElement = getDragAfterElement(body, e.clientY);
+        if (afterElement == null) {
+          body.appendChild(draggingCard);
+        } else {
+          body.insertBefore(draggingCard, afterElement);
+        }
+      }
+
+      function handleColDragLeave(e) {
+        if (!e.currentTarget.contains(e.relatedTarget)) {
+          e.currentTarget.classList.remove('drag-over');
+        }
+      }
+
+      function handleColDrop(e) {
+        e.preventDefault();
+        stopAutoScroll();
+        e.currentTarget.classList.remove('drag-over');
+        updateAndSaveOrder();
+        renderEmptyStates();
+      }
+
+      function getDragAfterElement(container, y) {
+        const draggableElements = [
+          ...container.querySelectorAll('.kcard:not(.is-dragging):not(.kcard-form)')
+        ];
+
+        return draggableElements.reduce((closest, child) => {
+          const box = child.getBoundingClientRect();
+          const offset = y - box.top - box.height / 2;
+          if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+          } else {
+            return closest;
+          }
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+      }
+
+      window.addEventListener('dragover', e => {
+        if (!isDraggingActive) return;
+        lastClientX = e.clientX;
+        lastClientY = e.clientY;
+        updateAutoScrollVelocity(e.clientY);
+      });
+
+      window.addEventListener('dragend', () => {
+        stopAutoScroll();
+      });
+
+      window.addEventListener('drop', () => {
+        stopAutoScroll();
+      });
+
+      function deleteItem(itemId) {
+        // カスタム項目一覧から削除（該当する場合）
+        customItems = customItems.filter(it => it.id !== itemId);
+        saveCustomItems();
+
+        // 削除済みIDセットに記録
+        deletedItemIds.add(itemId);
+        saveDeletedItems();
+
+        // チェック状態・メモの削除
+        checkedSet.delete(itemId);
+        saveChecked();
+
+        delete memoMap[itemId];
+        saveMemoStorage(); // 空文字を再代入せず、安全に保存
+
+        delete itemEditsMap[itemId];
+        saveItemEdits();
+
+        itemOrderList = itemOrderList.filter(id => id !== itemId);
+        saveItemOrder();
+
+        buildBoard();
+      }
+
+      // ─────────────────────────────────────────────
+      // 共通インライン編集コンポーネント
+      // ─────────────────────────────────────────────
+
+      /**
+       * 要素をクリックした際にインライン編集入力欄を起動する共通関数
+       */
+      function setupInlineEditor({ triggerEl, containerEl, getValue, onSave, onRender, maxLength, placeholder, ariaLabel }) {
+        triggerEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.className = triggerEl.className + '-input';
+          input.value = getValue();
+          input.maxLength = maxLength;
+          if (placeholder) input.placeholder = placeholder;
+          input.setAttribute('aria-label', ariaLabel);
+
+          let committed = false;
+          const finish = (save) => {
+            if (committed) return;
+            committed = true;
+            if (save) {
+              const val = input.value.trim();
+              onSave(val);
+            }
+            onRender(triggerEl);
+            if (input.parentNode === containerEl) {
+              containerEl.replaceChild(triggerEl, input);
+            }
+          };
+
+          input.addEventListener('mousedown', ev => ev.stopPropagation());
+          input.addEventListener('click', ev => ev.stopPropagation());
+
+          input.addEventListener('keydown', ev => {
+            if (ev.key === 'Enter') {
+              ev.preventDefault();
+              finish(true);
+            } else if (ev.key === 'Escape') {
+              ev.preventDefault();
+              finish(false);
+            }
+          });
+
+          input.addEventListener('blur', () => finish(true));
+
+          containerEl.replaceChild(input, triggerEl);
+          input.focus();
+          input.select();
+        });
+      }
+
+      function showAddCardForm(catId) {
+        const body = document.getElementById('col-' + catId + '-body');
+        if (!body) return;
+
+        const existingForm = document.querySelector('.kcard-form');
+        if (existingForm) {
+          const isSameCol = existingForm.closest('#col-' + catId + '-body');
+          if (isSameCol) {
+            const input = existingForm.querySelector('.kcard-input-title');
+            if (input) input.focus();
+            return;
+          }
+          existingForm.remove();
+        }
+
+        const formCard = document.createElement('div');
+        formCard.className = 'kcard kcard-form';
+
+        const topRow = document.createElement('div');
+        topRow.className = 'kcard-top';
+
+        const cbWrap = document.createElement('div');
+        cbWrap.className = 'kcard-checkbox is-dummy';
+        cbWrap.setAttribute('aria-hidden', 'true');
+        topRow.appendChild(cbWrap);
+
+        const titleInput = document.createElement('input');
+        titleInput.type = 'text';
+        titleInput.className = 'kcard-input-title';
+        titleInput.placeholder = '新しいタスク名を入力...';
+        titleInput.maxLength = 100;
+        titleInput.setAttribute('aria-label', '新しいタスク名');
+        topRow.appendChild(titleInput);
+        formCard.appendChild(topRow);
+
+        const metaRow = document.createElement('div');
+        metaRow.className = 'kcard-form-row';
+
+        const deadlineInput = document.createElement('input');
+        deadlineInput.type = 'text';
+        deadlineInput.className = 'kcard-input-deadline';
+        deadlineInput.placeholder = '締切（例: 毎日, 15時迄, 毎週金曜）';
+        deadlineInput.maxLength = 50;
+        deadlineInput.setAttribute('aria-label', '締切');
+        metaRow.appendChild(deadlineInput);
+        formCard.appendChild(metaRow);
+
+        const actionsRow = document.createElement('div');
+        actionsRow.className = 'kcard-form-actions';
+
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'btn-form-submit';
+        safeText(addBtn, '追加する');
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'btn-form-cancel';
+        safeText(cancelBtn, 'キャンセル');
+
+        actionsRow.appendChild(addBtn);
+        actionsRow.appendChild(cancelBtn);
+        formCard.appendChild(actionsRow);
+
+        const doSubmit = () => {
+          const titleVal = titleInput.value.trim();
+          if (!titleVal) {
+            titleInput.classList.add('is-invalid');
+            titleInput.focus();
+            return;
+          }
+          const deadlineVal = deadlineInput.value.trim();
+          addCustomItem(catId, titleVal, deadlineVal);
+        };
+
+        addBtn.addEventListener('click', doSubmit);
+        cancelBtn.addEventListener('click', () => {
+          formCard.remove();
+          renderEmptyStates();
+        });
+
+        titleInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            deadlineInput.focus();
+          } else if (e.key === 'Escape') {
+            formCard.remove();
+            renderEmptyStates();
+          }
+        });
+
+        deadlineInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            doSubmit();
+          } else if (e.key === 'Escape') {
+            formCard.remove();
+            renderEmptyStates();
+          }
+        });
+
+        const firstCard = body.querySelector('.kcard');
+        if (firstCard) {
+          body.insertBefore(formCard, firstCard);
+        } else {
+          const emptyEl = body.querySelector('.col-empty');
+          if (emptyEl) {
+            body.insertBefore(formCard, emptyEl);
+          } else {
+            body.appendChild(formCard);
+          }
+        }
+
+        titleInput.focus();
+      }
+
+      // ─────────────────────────────────────────────
+      // カンバン列生成
+      // ─────────────────────────────────────────────
+
+      /**
+       * カンバン列（section要素）を生成して返す
+       * @param {string} id    列の識別子（col-{id} / col-{id}-body で参照）
+       * @param {string} label 列見出しテキスト
+       * @param {boolean} isDone 提出済み列かどうか
+       * @returns {HTMLElement}
+       */
+      function createColumn(id, label, isDone) {
+        const section = document.createElement('section');
+        section.className = 'kanban-col col-' + truncate(id, 32) + (isDone ? ' col-done' : '');
+        section.id = 'col-' + id;
+        section.setAttribute('aria-label', label);
+
+        const header = document.createElement('div');
+        header.className = 'col-header';
+
+        const headerLeft = document.createElement('div');
+        headerLeft.className = 'col-header-left';
+
+        const dot = document.createElement('span');
+        dot.className = 'col-dot';
+        dot.setAttribute('aria-hidden', 'true');
+
+        const titleSpan = document.createElement('span');
+        titleSpan.className = 'col-title';
+        safeText(titleSpan, label);
+
+        headerLeft.appendChild(dot);
+        headerLeft.appendChild(titleSpan);
+        header.appendChild(headerLeft);
+
+        if (isDone) {
+          const clearBtn = document.createElement('button');
+          clearBtn.className = 'btn-clear';
+          clearBtn.id = 'btn-clear';
+          clearBtn.setAttribute('aria-label', '提出済みタスクをクリア');
+          clearBtn.title = '提出済みのすべてのタスクを未提出に戻します';
+          safeText(clearBtn, 'クリア');
+          clearBtn.addEventListener('click', onClearAll);
+          header.appendChild(clearBtn);
+        } else {
+          const addBtn = document.createElement('button');
+          addBtn.className = 'btn-add-item';
+          addBtn.id = 'btn-add-' + id;
+          addBtn.setAttribute('aria-label', `${label}に項目を追加`);
+          addBtn.title = `${label}に項目を追加`;
+          safeText(addBtn, '＋');
+          addBtn.addEventListener('click', () => showAddCardForm(id));
+          header.appendChild(addBtn);
+        }
+
+        section.appendChild(header);
+
+        const body = document.createElement('div');
+        body.className = 'col-body';
+        body.id = 'col-' + id + '-body';
+        body.setAttribute('role', 'list');
+        body.dataset.colId = id;
+
+        // 並び替え用ドラッグ＆ドロップイベント
+        body.addEventListener('dragover', handleColDragOver);
+        body.addEventListener('dragleave', handleColDragLeave);
+        body.addEventListener('drop', handleColDrop);
+
+        section.appendChild(body);
+
+        return section;
+      }
+
+      // ─────────────────────────────────────────────
+      // カンバンボード描画
+      // ─────────────────────────────────────────────
+
+      function buildBoard() {
+        const root = document.getElementById('kanban-root');
+        while (root.firstChild) root.removeChild(root.firstChild);
+
+        const cats = CHECKLIST_CONFIG.categories;
+        const numCols = cats.length + 1; // カテゴリ列 + 提出済み列
+
+        // グリッド列数を動的設定
+        root.style.gridTemplateColumns = `repeat(${numCols}, 1fr)`;
+
+        // カテゴリ別列を生成
+        cats.forEach(cat => {
+          const label = (cat.icon ? cat.icon + ' ' : '') + cat.label;
+          root.appendChild(createColumn(cat.id, label, false));
+        });
+
+        // 提出済み列
+        root.appendChild(createColumn('done', '完了済みタスク', true));
+
+        // カードを振り分け
+        getAllItems().forEach(item => {
+          const card = buildCard(item, false);
+          if (checkedSet.has(item.id)) {
+            document.getElementById('col-done-body').appendChild(card);
+          } else {
+            const colBody = document.getElementById('col-' + item.category + '-body');
+            const target = colBody || document.getElementById('col-' + cats[0].id + '-body');
+            if (target) target.appendChild(card);
+          }
+        });
+
+        renderEmptyStates();
+      }
+
+      // ─────────────────────────────────────────────
+      // カード生成
+      // ─────────────────────────────────────────────
+
+      /**
+       * @param {{ id:string, label:string, deadline:string, category:string, note:string }} item
+       * @param {boolean} animate
+       * @returns {HTMLElement}
+       */
+      function buildCard(item, animate) {
+        const safeId = truncate(item.id.replace(/[^a-zA-Z0-9_-]/g, ''), 64);
+        const isDone = checkedSet.has(item.id);
+
+        const card = document.createElement('div');
+        card.className = 'kcard' + (isDone ? ' is-done' : '') + (animate ? ' entering' : '');
+        card.id = 'card-' + safeId;
+        card.setAttribute('role', 'listitem');
+        card.setAttribute('tabindex', '0');
+        card.setAttribute('draggable', 'true');
+        card.dataset.itemId = item.id;
+        card.dataset.colId = isDone ? 'done' : item.category;
+        card.setAttribute('aria-label', item.label + (isDone ? '（提出済み）' : '（未提出）') + '。Altと矢印キーで並び替え可能');
+
+        // Top row
+        const topRow = document.createElement('div');
+        topRow.className = 'kcard-top';
+
+        // Drag handle (グリップアイコン)
+        const dragHandle = document.createElement('span');
+        dragHandle.className = 'kcard-drag-handle';
+        dragHandle.setAttribute('aria-hidden', 'true');
+        dragHandle.title = 'ドラッグして並び替え（Alt + ↑/↓でも移動可能）';
+
+        const dragSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        dragSvg.setAttribute('viewBox', '0 0 10 16');
+        dragSvg.setAttribute('width', '10');
+        dragSvg.setAttribute('height', '16');
+
+        const coords = [[2, 3], [8, 3], [2, 8], [8, 8], [2, 13], [8, 13]];
+        coords.forEach(([cx, cy]) => {
+          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          circle.setAttribute('cx', String(cx));
+          circle.setAttribute('cy', String(cy));
+          circle.setAttribute('r', '1.5');
+          circle.setAttribute('fill', 'currentColor');
+          dragSvg.appendChild(circle);
+        });
+        dragHandle.appendChild(dragSvg);
+        topRow.appendChild(dragHandle);
+
+        // Checkbox
+        const cbWrap = document.createElement('div');
+        cbWrap.className = 'kcard-checkbox';
+        cbWrap.setAttribute('aria-hidden', 'true');
+
+        const svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svgEl.setAttribute('viewBox', '0 0 10 10');
+        const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+        poly.setAttribute('points', '1.5,5.5 4,8 8.5,2');
+        svgEl.appendChild(poly);
+        cbWrap.appendChild(svgEl);
+
+        // Label (クリックでインライン編集)
+        const labelEl = document.createElement('span');
+        labelEl.className = 'kcard-label';
+        labelEl.title = 'クリックしてタスク名を編集';
+        safeText(labelEl, item.label);
+
+        setupInlineEditor({
+          triggerEl: labelEl,
+          containerEl: topRow,
+          getValue: () => item.label,
+          maxLength: 100,
+          placeholder: 'タスク名を入力...',
+          ariaLabel: 'タスク名を編集',
+          onSave: (val) => {
+            if (val && val !== item.label) {
+              updateItemField(item.id, 'label', val);
+              item.label = val;
+              card.setAttribute('aria-label', val + (isDone ? '（提出済み）' : '（未提出）') + '。Altと矢印キーで並び替え可能');
+            }
+          },
+          onRender: (el) => safeText(el, item.label)
+        });
+
+        topRow.appendChild(cbWrap);
+        topRow.appendChild(labelEl);
+
+        // すべてのタスクに削除ボタンを付与
+        const delBtn = document.createElement('button');
+        delBtn.className = 'btn-card-delete';
+        delBtn.setAttribute('aria-label', `${item.label}を削除`);
+        delBtn.title = 'タスクを削除';
+        safeText(delBtn, '×');
+        delBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (window.confirm(`タスク「${item.label}」を削除しますか？`)) {
+            deleteItem(item.id);
+          }
+        });
+        topRow.appendChild(delBtn);
+
+        card.appendChild(topRow);
+
+        // Meta row
+        const metaRow = document.createElement('div');
+        metaRow.className = 'kcard-meta';
+
+        // Deadline Badge (クリックでインライン編集)
+        const deadlineBadge = document.createElement('span');
+        const updateDeadlineBadgeClass = (el, val) => {
+          const hasVal = Boolean(val && val.trim());
+          el.className = 'badge-deadline' + (hasVal ? '' : ' is-empty');
+          safeText(el, hasVal ? val : '+ 締切設定');
+        };
+        updateDeadlineBadgeClass(deadlineBadge, item.deadline);
+        deadlineBadge.title = 'クリックして締切を編集';
+
+        setupInlineEditor({
+          triggerEl: deadlineBadge,
+          containerEl: metaRow,
+          getValue: () => item.deadline || '',
+          maxLength: 50,
+          placeholder: '例: 毎日, 15時迄',
+          ariaLabel: '締切を編集',
+          onSave: (val) => {
+            if (val !== (item.deadline || '')) {
+              updateItemField(item.id, 'deadline', val);
+              item.deadline = val;
+            }
+          },
+          onRender: (el) => updateDeadlineBadgeClass(el, item.deadline)
+        });
+
+        metaRow.appendChild(deadlineBadge);
+
+        const catConfig = CHECKLIST_CONFIG.categories.find(c => c.id === item.category);
+        if (catConfig) {
+          const catPill = document.createElement('span');
+          catPill.className = 'badge-cat ' + truncate(item.category, 32);
+          safeText(catPill, catConfig.label);
+          metaRow.appendChild(catPill);
+        }
+
+        card.appendChild(metaRow);
+
+        // Memo row
+        const memoWrap = document.createElement('div');
+        memoWrap.className = 'kcard-memo-wrap';
+
+        const memoInput = document.createElement('input');
+        memoInput.type = 'text';
+        memoInput.className = 'kcard-memo';
+        memoInput.id = 'memo-' + safeId;
+        memoInput.setAttribute('placeholder', 'メモ（提出日時・進捗など）');
+        memoInput.setAttribute('maxlength', '200');
+        memoInput.setAttribute('aria-label', item.label + ' のメモ');
+        memoInput.value = truncate(memoMap[item.id] || item.note || '', 200);
+
+        memoWrap.appendChild(memoInput);
+        card.appendChild(memoWrap);
+
+        // 子要素のドラッグ誤発火防止
+        cbWrap.setAttribute('draggable', 'false');
+        memoInput.setAttribute('draggable', 'false');
+        delBtn.setAttribute('draggable', 'false');
+
+        cbWrap.addEventListener('mousedown', e => e.stopPropagation());
+        memoInput.addEventListener('mousedown', e => e.stopPropagation());
+        delBtn.addEventListener('mousedown', e => e.stopPropagation());
+
+        // ドラッグイベント
+        card.addEventListener('dragstart', function (e) {
+          isDraggingActive = true;
+          e.dataTransfer.setData('text/plain', item.id);
+          e.dataTransfer.effectAllowed = 'move';
+          this.classList.add('is-dragging');
+          startAutoScroll();
+        });
+
+        card.addEventListener('dragend', function () {
+          this.classList.remove('is-dragging');
+          stopAutoScroll();
+          setTimeout(() => {
+            isDraggingActive = false;
+          }, 60);
+          document.querySelectorAll('.col-body').forEach(b => b.classList.remove('drag-over'));
+          updateAndSaveOrder();
+        });
+
+        // クリックとキーボード操作
+        card.addEventListener('click', () => {
+          if (isDraggingActive) return;
+          toggleCard(item.id);
+        });
+
+        memoInput.addEventListener('click', e => e.stopPropagation());
+
+        card.addEventListener('keydown', e => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            if (e.target === card) {
+              e.preventDefault();
+              toggleCard(item.id);
+            }
+          } else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+            e.preventDefault();
+            moveCardByStep(item.id, e.key === 'ArrowUp' ? -1 : 1);
+          }
+        });
+
+        memoInput.addEventListener('change', () => saveMemo(item.id, memoInput.value));
+        memoInput.addEventListener('blur', () => saveMemo(item.id, memoInput.value));
+
+        return card;
+      }
+
+      // ─────────────────────────────────────────────
+      // チェック切り替え（アニメーション付き）
+      // ─────────────────────────────────────────────
+
+      /**
+       * チェック状態を切り替える。
+       * @param {string} itemId
+       */
+      function toggleCard(itemId) {
+        const item = getAllItems().find(it => it.id === itemId);
+        if (!item) return;
+
+        const nowDone = !checkedSet.has(itemId);
+        const safeId = itemId.replace(/[^a-zA-Z0-9_-]/g, '');
+        const existing = document.getElementById('card-' + safeId);
+
+        if (nowDone) {
+          // ── チェックを入れる ──
+          checkedSet.add(itemId);
+          saveChecked();
+
+          if (existing) {
+            existing.classList.add('is-checking');
+            existing.style.pointerEvents = 'none';
+          }
+
+          setTimeout(() => {
+            if (existing) existing.remove();
+
+            const newCard = buildCard(item, true);
+            const doneBody = document.getElementById('col-done-body');
+            if (doneBody) doneBody.appendChild(newCard);
+
+            requestAnimationFrame(() => {
+              setTimeout(() => newCard.classList.remove('entering'), 300);
+            });
+
+            renderEmptyStates();
+          }, CHECK_ANIM_MS);
+
+        } else {
+          // ── チェックを外す ──
+          checkedSet.delete(itemId);
+          saveChecked();
+
+          if (existing) existing.remove();
+
+          const newCard = buildCard(item, true);
+          const catColId = 'col-' + item.category + '-body';
+          const catBody = document.getElementById(catColId);
+          const fallback = document.getElementById(
+            'col-' + CHECKLIST_CONFIG.categories[0].id + '-body'
+          );
+          const targetBody = catBody || fallback;
+
+          if (targetBody) insertCardInOrder(newCard, itemId, targetBody);
+
+          requestAnimationFrame(() => {
+            setTimeout(() => newCard.classList.remove('entering'), 300);
+          });
+
+          renderEmptyStates();
+        }
+      }
+
+      /**
+       * configおよび保存順序を維持してカードを挿入する (O(N) 最適化)
+       * @param {HTMLElement} card
+       * @param {string} itemId
+       * @param {HTMLElement} body
+       */
+      function insertCardInOrder(card, itemId, body) {
+        const allItems = getAllItems();
+        const allIds = allItems.map(it => it.id);
+        const targetIdx = allIds.indexOf(itemId);
+        const existing = body.querySelectorAll('.kcard');
+
+        let inserted = false;
+        for (const el of existing) {
+          const elId = el.dataset.itemId;
+          if (elId && allIds.indexOf(elId) > targetIdx) {
+            body.insertBefore(card, el);
+            inserted = true;
+            break;
+          }
+        }
+        if (!inserted) body.appendChild(card);
+      }
+
+      // ─────────────────────────────────────────────
+      // エンプティステート共通処理
+      // ─────────────────────────────────────────────
+
+      function setColumnEmptyState(body, message) {
+        const old = body.querySelector('.col-empty');
+        if (old) old.remove();
+        if (!body.querySelector('.kcard')) {
+          const div = document.createElement('div');
+          div.className = 'col-empty';
+          const span = document.createElement('span');
+          safeText(span, message);
+          div.appendChild(span);
+          body.appendChild(div);
+        }
+      }
+
+      function renderEmptyStates() {
+        // カテゴリ列
+        CHECKLIST_CONFIG.categories.forEach(cat => {
+          const body = document.getElementById('col-' + cat.id + '-body');
+          if (body) {
+            setColumnEmptyState(body, 'すべて完了');
+          }
+        });
+
+        // 提出済み列
+        const doneBody = document.getElementById('col-done-body');
+        if (doneBody) {
+          setColumnEmptyState(doneBody, '完了済みのタスクはありません');
+        }
+      }
+
+      // ─────────────────────────────────────────────
+      // 提出済みクリア（チェック状態のみ解除し未提出に戻す）
+      // ─────────────────────────────────────────────
+
+      function onClearAll() {
+        if (checkedSet.size === 0) return;
+        checkedSet.clear();
+        saveChecked();
+        buildBoard();
+      }
+
+      // ─────────────────────────────────────────────
+      // 初期値リセット（現在の定義状態へ完全復元）
+      // ─────────────────────────────────────────────
+
+      function onResetToDefault() {
+        if (!window.confirm('すべてのタスク、順序、編集内容を初期状態（デフォルト）に戻しますか？\nこの操作は取り消せません。')) {
+          return;
+        }
+
+        checkedSet.clear();
+        memoMap = Object.create(null);
+        customItems = [];
+        deletedItemIds.clear();
+        itemEditsMap = Object.create(null);
+        itemOrderList = [];
+
+        removeStorageItem(LS_CHECKED);
+        removeStorageItem(LS_MEMO);
+        removeStorageItem(LS_CUSTOM_ITEMS);
+        removeStorageItem(LS_DELETED_ITEMS);
+        removeStorageItem(LS_EDITS);
+        removeStorageItem(LS_ORDER);
+
+        buildBoard();
+      }
+
+      // ─────────────────────────────────────────────
+      // 初期化
+      // ─────────────────────────────────────────────
+
+      function init() {
+        if (typeof CHECKLIST_CONFIG === 'undefined') {
+          const errEl = document.getElementById('config-error');
+          errEl.style.display = 'block';
+          safeText(errEl,
+            'エラー: 設定データ（CHECKLIST_CONFIG）が定義されていません。\n' +
+            'HTML内の設定データブロック（CHECKLIST_CONFIG）が正しく記載されているか確認してください。'
+          );
+          return;
+        }
+
+        const errors = validateConfig();
+        if (errors.length > 0) {
+          const errEl = document.getElementById('config-error');
+          errEl.style.display = 'block';
+          safeText(errEl, '設定ファイルにエラーがあります:\n\n' + errors.join('\n'));
+          return;
+        }
+
+        const titleText = truncate(String(CHECKLIST_CONFIG.appTitle || 'checklist'), 80);
+        document.title = titleText;
+        safeText(document.getElementById('app-title-heading'), titleText);
+
+        const footerText = truncate(String(CHECKLIST_CONFIG.footerText || ''), 300);
+        if (footerText) {
+          safeText(document.getElementById('app-footer'), footerText);
+        }
+
+        loadState();
+        buildBoard();
+
+        const resetBtn = document.getElementById('btn-reset');
+        if (resetBtn) {
+          resetBtn.addEventListener('click', onResetToDefault);
+        }
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+
+    }());
+  </script>
+</body>
+
 </html>
