@@ -1,1 +1,13 @@
+# Backups and temporary files
 *.bak
+*.tmp
+*~
+
+# OS generated files
+Thumbs.db
+[Dd]esktop.ini
+.DS_Store
+
+# Editor / IDE configuration
+.vscode/
+.idea/
